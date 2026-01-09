@@ -19,11 +19,11 @@ export default function People() {
             <p className="text-muted-foreground font-medium">Find friends to chat with</p>
           </div>
           
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <div className="relative group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <Input
-              placeholder="Search by name, email or phone number..."
-              className="pl-10 h-12 rounded-xl"
+              placeholder="Search by name, email or phone..."
+              className="pl-12 h-14 rounded-2xl bg-secondary/50 border-none focus-visible:ring-4 focus-visible:ring-primary/10 transition-all font-medium text-lg placeholder:text-muted-foreground/70"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               data-testid="input-search-people"
@@ -31,24 +31,41 @@ export default function People() {
           </div>
         </header>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {isLoading ? (
-            <div className="col-span-full flex justify-center py-10">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <div className="col-span-full flex flex-col items-center justify-center py-20 space-y-4">
+              <Loader2 className="w-12 h-12 animate-spin text-primary" />
+              <p className="text-muted-foreground font-medium animate-pulse">Finding connections...</p>
             </div>
           ) : users?.length === 0 ? (
-            <div className="col-span-full py-12 text-center text-muted-foreground">
-              No people found matching your search.
+            <div className="col-span-full py-20 text-center space-y-4">
+              <div className="w-20 h-20 bg-muted rounded-full mx-auto flex items-center justify-center">
+                <Search className="w-10 h-10 text-muted-foreground/40" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-xl font-bold">No matches found</p>
+                <p className="text-muted-foreground">Try a different name or number</p>
+              </div>
             </div>
           ) : (
             users?.map((user) => (
               <Link key={user.id} href={`/chat/${user.id}`}>
-                <div className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border/50 shadow-sm hover:shadow-md hover:border-primary/30 transition-all cursor-pointer group">
-                  <Avatar name={`${user.firstName} ${user.lastName}`} src={user.profileImageUrl} size="lg" isOnline={user.isOnline || false} />
-                  <h3 className="mt-4 font-bold text-center truncate w-full group-hover:text-primary transition-colors">{user.firstName} {user.lastName}</h3>
-                  <p className="text-xs text-muted-foreground mt-1 truncate max-w-full text-center">
-                    {user.phoneNumber || user.email}
-                  </p>
+                <div className="flex flex-col items-center p-8 rounded-[2rem] bg-card border border-border/40 shadow-sm hover:shadow-xl hover:shadow-primary/5 hover:border-primary/20 transition-all duration-300 cursor-pointer group relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-[4rem] -mr-8 -mt-8 group-hover:bg-primary/10 transition-colors" />
+                  <Avatar name={`${user.firstName} ${user.lastName}`} src={user.profileImageUrl} size="xl" isOnline={user.isOnline || false} />
+                  <div className="mt-6 space-y-1 text-center w-full">
+                    <h3 className="font-bold text-xl truncate group-hover:text-primary transition-colors tracking-tight">
+                      {user.firstName} {user.lastName}
+                    </h3>
+                    <p className="text-sm font-medium text-muted-foreground truncate opacity-80">
+                      {user.phoneNumber || user.email}
+                    </p>
+                  </div>
+                  <div className="mt-6 w-full pt-6 border-t border-border/40">
+                    <button className="w-full py-3 rounded-xl bg-secondary/50 group-hover:bg-primary group-hover:text-white transition-all font-bold text-sm">
+                      Send Message
+                    </button>
+                  </div>
                 </div>
               </Link>
             ))
