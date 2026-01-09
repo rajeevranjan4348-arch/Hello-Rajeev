@@ -20,6 +20,7 @@ export const users = pgTable("users", {
   email: varchar("email").unique(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
+  phoneNumber: varchar("phone_number").unique(),
   profileImageUrl: varchar("profile_image_url"),
   bio: text("bio"),
   isOnline: boolean("is_online").default(false),

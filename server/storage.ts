@@ -39,7 +39,8 @@ export class DatabaseStorage implements IStorage {
       or(
         like(users.firstName, `%${query}%`),
         like(users.lastName, `%${query}%`),
-        like(users.email, `%${query}%`)
+        like(users.email, `%${query}%`),
+        like(users.phoneNumber, `%${query}%`)
       )
     );
   }
