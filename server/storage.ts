@@ -1,38 +1,82 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import { db } from "./db";
+import { eq, or, and, desc, ne, like } from "drizzle-orm";
+import {
+  users, messages, calls, contacts,
+  type User, type InsertUser,
+  type Message, type InsertMessage,
+  type Call, type InsertCall
+} from "@shared/schema";
+import { authStorage } from "./replit_integrations/auth/storage";
 
 export interface IStorage {
+  // Auth & User methods
   getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  getUsers(currentUserId: string): Promise<User[]>;
+  searchUsers(query: string): Promise<User[]>;
+  updateUserStatus(userId: string, isOnline: boolean): Promise<void>;
+  
+  // Message methods
+  getMessages(userId1: string, userId2: string): Promise<Message[]>;
+  createMessage(message: InsertMessage): Promise<Message>;
+  
+  // Call methods
+  createCall(call: InsertCall): Promise<Call>;
+  getCalls(userId: string): Promise<Call[]>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
-  }
-
+export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    return authStorage.getUser(id);
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
+  async getUsers(currentUserId: string): Promise<User[]> {
+    // Return all users except current
+    return await db.select().from(users).where(ne(users.id, currentUserId));
+  }
+
+  async searchUsers(query: string): Promise<User[]> {
+    return await db.select().from(users).where(
+      or(
+        like(users.firstName, `%${query}%`),
+        like(users.lastName, `%${query}%`),
+        like(users.email, `%${query}%`)
+      )
     );
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async updateUserStatus(userId: string, isOnline: boolean): Promise<void> {
+    await db.update(users)
+      .set({ 
+        isOnline, 
+        lastSeen: new Date() 
+      })
+      .where(eq(users.id, userId));
+  }
+
+  async getMessages(userId1: string, userId2: string): Promise<Message[]> {
+    return await db.select().from(messages).where(
+      or(
+        and(eq(messages.senderId, userId1), eq(messages.receiverId, userId2)),
+        and(eq(messages.senderId, userId2), eq(messages.receiverId, userId1))
+      )
+    ).orderBy(messages.createdAt);
+  }
+
+  async createMessage(message: InsertMessage): Promise<Message> {
+    const [newMessage] = await db.insert(messages).values(message).returning();
+    return newMessage;
+  }
+
+  async createCall(call: InsertCall): Promise<Call> {
+    const [newCall] = await db.insert(calls).values(call).returning();
+    return newCall;
+  }
+
+  async getCalls(userId: string): Promise<Call[]> {
+    return await db.select().from(calls).where(
+      or(eq(calls.callerId, userId), eq(calls.calleeId, userId))
+    ).orderBy(desc(calls.startedAt));
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
