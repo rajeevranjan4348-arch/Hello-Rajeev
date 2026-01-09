@@ -87,8 +87,8 @@ export type InsertCall = z.infer<typeof insertCallSchema>;
 export type SendMessageRequest = InsertMessage;
 
 // Response types
-export type MessageResponse = Message & { sender?: User, receiver?: User };
-export type CallResponse = Call & { caller?: User, callee?: User };
+export type MessageResponse = Message & { sender?: any, receiver?: any };
+export type CallResponse = Call & { caller?: any, callee?: any };
 
 // Query params
 export interface MessagesQueryParams {

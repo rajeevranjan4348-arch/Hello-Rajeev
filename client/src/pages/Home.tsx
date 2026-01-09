@@ -43,8 +43,8 @@ export default function Home() {
 
   const filteredUsers = users?.filter(u => 
     u.id !== currentUser.id && 
-    (u.displayName.toLowerCase().includes(search.toLowerCase()) || 
-     u.username.toLowerCase().includes(search.toLowerCase()))
+    ((u.firstName + " " + u.lastName).toLowerCase().includes(search.toLowerCase()) || 
+     (u.phoneNumber && u.phoneNumber.includes(search)))
   );
 
   return (
@@ -56,7 +56,7 @@ export default function Home() {
             <p className="text-muted-foreground font-medium">{filteredUsers?.length || 0} contacts available</p>
           </div>
           <Link href="/settings">
-            <Avatar name={currentUser.displayName} src={currentUser.avatarUrl} size="md" />
+            <Avatar name={`${currentUser.firstName} ${currentUser.lastName}`} src={currentUser.profileImageUrl} size="md" />
           </Link>
         </header>
 
@@ -64,7 +64,7 @@ export default function Home() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5 group-focus-within:text-primary transition-colors" />
           <input
             type="text"
-            placeholder="Search conversations..."
+            placeholder="Search by name or number..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-12 pr-4 py-4 rounded-2xl bg-secondary/50 border border-transparent focus:bg-background focus:border-primary/20 focus:ring-4 focus:ring-primary/10 transition-all outline-none font-medium placeholder:text-muted-foreground/70"
@@ -90,15 +90,15 @@ export default function Home() {
               className="group flex items-center gap-4 p-4 rounded-2xl hover:bg-white dark:hover:bg-white/5 border border-transparent hover:border-border/50 hover:shadow-sm cursor-pointer transition-all duration-200"
             >
               <Avatar 
-                name={user.displayName} 
-                src={user.avatarUrl} 
+                name={`${user.firstName} ${user.lastName}`} 
+                src={user.profileImageUrl} 
                 isOnline={user.isOnline || false}
                 size="lg"
               />
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-baseline mb-1">
                   <h3 className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
-                    {user.displayName}
+                    {user.firstName} {user.lastName}
                   </h3>
                   {user.lastSeen && (
                     <span className="text-xs text-muted-foreground">
@@ -107,7 +107,7 @@ export default function Home() {
                   )}
                 </div>
                 <p className="text-muted-foreground truncate text-sm">
-                  {user.bio || "Available for chat"}
+                  {user.phoneNumber || user.bio || "Available for chat"}
                 </p>
               </div>
             </div>

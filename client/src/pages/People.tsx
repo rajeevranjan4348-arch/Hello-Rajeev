@@ -44,10 +44,10 @@ export default function People() {
             users?.map((user) => (
               <Link key={user.id} href={`/chat/${user.id}`}>
                 <div className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border/50 shadow-sm hover:shadow-md hover:border-primary/30 transition-all cursor-pointer group">
-                  <Avatar name={user.displayName} src={user.avatarUrl} size="lg" isOnline={user.isOnline || false} />
-                  <h3 className="mt-4 font-bold text-center truncate w-full group-hover:text-primary transition-colors">{user.displayName}</h3>
+                  <Avatar name={`${user.firstName} ${user.lastName}`} src={user.profileImageUrl} size="lg" isOnline={user.isOnline || false} />
+                  <h3 className="mt-4 font-bold text-center truncate w-full group-hover:text-primary transition-colors">{user.firstName} {user.lastName}</h3>
                   <p className="text-xs text-muted-foreground mt-1 truncate max-w-full text-center">
-                    {user.phoneNumber || user.username}
+                    {user.phoneNumber || user.email}
                   </p>
                 </div>
               </Link>
