@@ -52,15 +52,19 @@ export default function Settings() {
         <div className="p-6 rounded-3xl bg-gradient-to-br from-primary to-blue-600 text-white shadow-xl shadow-blue-500/20">
           <div className="flex items-center gap-5">
             <Avatar 
-              name={user.displayName} 
-              src={user.avatarUrl} 
+              name={`${user.firstName} ${user.lastName}`} 
+              src={user.profileImageUrl} 
               size="xl" 
               className="border-4 border-white/20"
             />
-            <div>
-              <h2 className="text-2xl font-bold">{user.displayName}</h2>
-              <p className="text-white/80">@{user.username}</p>
-              <div className="mt-3 inline-flex px-3 py-1 rounded-full bg-white/20 text-xs font-medium backdrop-blur-sm">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-2xl font-bold truncate leading-tight">
+                {user.firstName} {user.lastName}
+              </h2>
+              <p className="text-white/80 text-sm truncate opacity-90">
+                {user.phoneNumber || user.email || "No contact info"}
+              </p>
+              <div className="mt-4 inline-flex px-4 py-1.5 rounded-full bg-white/25 text-[11px] font-bold uppercase tracking-wider backdrop-blur-md border border-white/10">
                 Free Account
               </div>
             </div>
