@@ -16,7 +16,7 @@ export function Avatar({ src, name, size = "md", className, isOnline }: AvatarPr
     xl: "w-24 h-24 text-xl",
   };
 
-  const initial = name.charAt(0).toUpperCase();
+  const initial = (name || "").charAt(0).toUpperCase();
   const fallbackSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff`;
 
   return (
