@@ -17,22 +17,26 @@ export default function Settings() {
   const { logout } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(() => {
+    return document.documentElement.classList.contains('dark') || 
+           localStorage.getItem('theme') === 'dark';
+  });
   const [isEditingBio, setIsEditingBio] = useState(false);
   const [bio, setBio] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
-    if (user?.bio) {
-      setBio(user.bio);
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
     }
-  }, [user?.bio]);
-
-  if (!user) return null;
+  }, [isDark]);
 
   const toggleTheme = () => {
-    setIsDark(!isDark);
-    document.documentElement.classList.toggle('dark');
+    setIsDark(prev => !prev);
   };
 
   const handleUpdateBio = async () => {
