@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 export default function Call() {
   const [, params] = useRoute("/call/:id");
   const [, setLocation] = useLocation();
-  const userId = parseInt(params?.id || "0");
+  const userId = params?.id || "0";
   const searchParams = new URLSearchParams(window.location.search);
   const type = (searchParams.get("type") as "video" | "voice") || "voice";
 
@@ -20,18 +20,44 @@ export default function Call() {
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(type === "voice");
   const [status, setStatus] = useState("Connecting...");
+  const [stream, setStream] = useState<MediaStream | null>(null);
 
   useEffect(() => {
+    async function requestPermissions() {
+      try {
+        const constraints = {
+          audio: true,
+          video: type === "video"
+        };
+        const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+        setStream(mediaStream);
+      } catch (err) {
+        console.error("Permission denied:", err);
+        setStatus("Permission denied");
+      }
+    }
+
     if (user && currentUser) {
+      requestPermissions();
       createCall({ calleeId: user.id, type });
       const timer = setTimeout(() => setStatus("Ringing..."), 1000);
       const timer2 = setTimeout(() => setStatus("Connected"), 3000);
       return () => {
         clearTimeout(timer);
         clearTimeout(timer2);
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+        }
       };
     }
   }, [user, currentUser, createCall, type]);
+
+  useEffect(() => {
+    const videoElement = document.getElementById("self-view") as HTMLVideoElement;
+    if (videoElement && stream && !isVideoOff) {
+      videoElement.srcObject = stream;
+    }
+  }, [stream, isVideoOff]);
 
   if (!user) return null;
 
@@ -40,30 +66,32 @@ export default function Call() {
       {/* Background Image Effect */}
       <div 
         className="absolute inset-0 opacity-20 blur-3xl scale-110 z-0 bg-center bg-cover"
-        style={{ backgroundImage: `url(${user.avatarUrl})` }}
+        style={{ backgroundImage: user.profileImageUrl ? `url(${user.profileImageUrl})` : "none" }}
       />
       <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80 z-0" />
 
       {/* Header Info */}
       <div className="z-10 text-center space-y-2 mt-8 animate-in slide-in-from-top-10 fade-in duration-700">
         <Avatar 
-          name={user.displayName} 
-          src={user.avatarUrl} 
+          name={`${user.firstName} ${user.lastName}`} 
+          src={user.profileImageUrl} 
           size="xl" 
           className="border-4 border-white/10 shadow-2xl shadow-black/50" 
         />
-        <h2 className="text-3xl font-display font-bold mt-4">{user.displayName}</h2>
+        <h2 className="text-3xl font-display font-bold mt-4">{user.firstName} {user.lastName}</h2>
         <p className="text-white/60 font-medium tracking-wide animate-pulse">{status}</p>
       </div>
 
       {/* Video Placeholder (Self View) */}
       {!isVideoOff && type === 'video' && (
         <div className="absolute top-8 right-8 w-32 h-48 bg-zinc-800 rounded-2xl border border-white/20 shadow-2xl z-20 overflow-hidden">
-          {currentUser?.avatarUrl ? (
-            <img src={currentUser.avatarUrl} alt="Me" className="w-full h-full object-cover opacity-80" />
-          ) : (
-             <div className="w-full h-full flex items-center justify-center bg-zinc-700 text-xs text-white/50">Camera</div>
-          )}
+          <video
+            id="self-view"
+            autoPlay
+            playsInline
+            muted
+            className="w-full h-full object-cover"
+          />
         </div>
       )}
 
