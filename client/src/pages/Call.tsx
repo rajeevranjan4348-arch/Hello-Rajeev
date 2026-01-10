@@ -24,6 +24,7 @@ export default function Call() {
 
   useEffect(() => {
     async function requestPermissions() {
+      if (!user) return;
       try {
         const constraints = {
           audio: true,
