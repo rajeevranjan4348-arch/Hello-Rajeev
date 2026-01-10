@@ -10,7 +10,7 @@ import { format } from "date-fns";
 
 export default function Chat() {
   const [, params] = useRoute("/chat/:id");
-  const userId = parseInt(params?.id || "0");
+  const userId = params?.id || "0";
   
   const { data: user } = useUser(userId);
   const { data: currentUser } = useCurrentUser();
@@ -34,7 +34,7 @@ export default function Chat() {
     sendMessage({
       senderId: currentUser.id,
       receiverId: userId,
-      content,
+      content: content.trim(),
       type: "text",
     }, {
       onSuccess: () => {
@@ -57,9 +57,9 @@ export default function Chat() {
               </button>
             </Link>
             <div className="flex items-center gap-3">
-              <Avatar name={user.displayName} src={user.avatarUrl} size="sm" isOnline={user.isOnline || false} />
+              <Avatar name={`${user.firstName} ${user.lastName}`} src={user.profileImageUrl} size="sm" isOnline={user.isOnline || false} />
               <div>
-                <h3 className="font-bold text-sm leading-none">{user.displayName}</h3>
+                <h3 className="font-bold text-sm leading-none">{user.firstName} {user.lastName}</h3>
                 <span className="text-xs text-muted-foreground">
                   {user.isOnline ? "Online" : "Offline"}
                 </span>
@@ -105,7 +105,7 @@ export default function Chat() {
                 >
                   {!isMe && (
                     <div className="w-8 flex-shrink-0">
-                      {showAvatar && <Avatar name={user.displayName} src={user.avatarUrl} size="sm" />}
+                      {showAvatar && <Avatar name={`${user.firstName} ${user.lastName}`} src={user.profileImageUrl} size="sm" />}
                     </div>
                   )}
                   

@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
 import { InsertMessage, Message } from "@shared/schema";
 
-export function useMessages(userId: number) {
+export function useMessages(userId: string) {
   return useQuery({
     queryKey: [api.messages.list.path, userId],
     queryFn: async () => {

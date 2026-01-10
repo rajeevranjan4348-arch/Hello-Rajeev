@@ -29,7 +29,7 @@ export function useUsers(search?: string) {
   });
 }
 
-export function useUser(id: number) {
+export function useUser(id: string) {
   return useQuery({
     queryKey: [api.users.get.path, id],
     queryFn: async () => {
