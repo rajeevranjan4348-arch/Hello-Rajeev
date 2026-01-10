@@ -69,7 +69,7 @@ export default function Settings() {
       title: "Account",
       items: [
         { icon: User, label: "Personal Info", onClick: () => setLocation("/settings/personal") },
-        { icon: Lock, label: "Privacy & Security", onClick: () => {} },
+        { icon: Lock, label: "Privacy & Security", onClick: () => setLocation("/settings/privacy") },
       ]
     },
     {
