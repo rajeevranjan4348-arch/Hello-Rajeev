@@ -4,6 +4,7 @@ import { Layout } from "@/components/Layout";
 import { Avatar } from "@/components/Avatar";
 import { Bell, Moon, Lock, HelpCircle, LogOut, ChevronRight, User, Pencil } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +16,7 @@ export default function Settings() {
   const { data: user } = useCurrentUser();
   const { logout } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [isDark, setIsDark] = useState(false);
   const [isEditingBio, setIsEditingBio] = useState(false);
   const [bio, setBio] = useState("");
@@ -51,7 +53,7 @@ export default function Settings() {
     {
       title: "Account",
       items: [
-        { icon: User, label: "Personal Info", onClick: () => {} },
+        { icon: User, label: "Personal Info", onClick: () => setLocation("/settings/personal") },
         { icon: Lock, label: "Privacy & Security", onClick: () => {} },
       ]
     },
