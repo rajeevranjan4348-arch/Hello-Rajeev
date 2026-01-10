@@ -10,6 +10,8 @@ import Call from "@/pages/Call";
 import CallsList from "@/pages/CallsList";
 import People from "@/pages/People";
 import Settings from "@/pages/Settings";
+import PrivacyPolicy from "@/pages/legal/PrivacyPolicy";
+import TermsOfService from "@/pages/legal/TermsOfService";
 
 function Router() {
   return (
@@ -20,6 +22,8 @@ function Router() {
       <Route path="/calls" component={CallsList} />
       <Route path="/people" component={People} />
       <Route path="/settings" component={Settings} />
+      <Route path="/privacy" component={PrivacyPolicy} />
+      <Route path="/terms" component={TermsOfService} />
       <Route component={NotFound} />
     </Switch>
   );

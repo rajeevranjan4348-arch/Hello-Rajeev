@@ -86,6 +86,11 @@ export default function Home() {
             </div>
           </div>
           
+          <div className="flex justify-center gap-6 text-xs text-muted-foreground/60 font-bold tracking-widest uppercase">
+            <Link href="/privacy" className="hover:text-primary transition-colors">Privacy</Link>
+            <Link href="/terms" className="hover:text-primary transition-colors">Terms</Link>
+          </div>
+          
           <p className="text-xs text-muted-foreground/60 font-medium">
             By continuing, you agree to our Terms and Privacy Policy.
           </p>

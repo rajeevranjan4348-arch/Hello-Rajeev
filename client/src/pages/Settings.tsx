@@ -66,6 +66,8 @@ export default function Settings() {
       title: "Support",
       items: [
         { icon: HelpCircle, label: "Help & FAQ", onClick: () => {} },
+        { icon: Lock, label: "Privacy Policy", onClick: () => window.location.href = "/privacy" },
+        { icon: ChevronRight, label: "Terms of Service", onClick: () => window.location.href = "/terms" },
       ]
     }
   ];
