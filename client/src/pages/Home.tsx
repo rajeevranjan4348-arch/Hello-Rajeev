@@ -65,6 +65,7 @@ export default function Home() {
               By continuing, you agree to our Terms and Privacy Policy.
             </p>
           </div>
+        </div>
       </div>
     );
   }

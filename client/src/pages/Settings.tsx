@@ -18,12 +18,21 @@ export default function Settings() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [isDark, setIsDark] = useState(() => {
-    return document.documentElement.classList.contains('dark') || 
-           localStorage.getItem('theme') === 'dark';
+    if (typeof window !== 'undefined') {
+      return document.documentElement.classList.contains('dark') || 
+             localStorage.getItem('theme') === 'dark';
+    }
+    return false;
   });
   const [isEditingBio, setIsEditingBio] = useState(false);
   const [bio, setBio] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
+
+  useEffect(() => {
+    if (user?.bio) {
+      setBio(user.bio);
+    }
+  }, [user?.bio]);
 
   useEffect(() => {
     if (isDark) {
@@ -34,6 +43,8 @@ export default function Settings() {
       localStorage.setItem('theme', 'light');
     }
   }, [isDark]);
+
+  if (!user) return null;
 
   const toggleTheme = () => {
     setIsDark(prev => !prev);
@@ -72,8 +83,8 @@ export default function Settings() {
       title: "Support",
       items: [
         { icon: HelpCircle, label: "Help & FAQ", onClick: () => {} },
-        { icon: Lock, label: "Privacy Policy", onClick: () => window.location.href = "/privacy" },
-        { icon: ChevronRight, label: "Terms of Service", onClick: () => window.location.href = "/terms" },
+        { icon: Lock, label: "Privacy Policy", onClick: () => setLocation("/privacy") },
+        { icon: ChevronRight, label: "Terms of Service", onClick: () => setLocation("/terms") },
       ]
     }
   ];
