@@ -3,7 +3,7 @@ import { useUser, useCurrentUser } from "@/hooks/use-users";
 import { Avatar } from "@/components/Avatar";
 import { Layout } from "@/components/Layout";
 import { Link, useRoute } from "wouter";
-import { ArrowLeft, Phone, Video, Send, Paperclip, Loader2, MoreVertical, Pencil, Trash2, Lock as LockIcon } from "lucide-react";
+import { ArrowLeft, Phone, Video, Send, Paperclip, Loader2, MoreVertical, Pencil, Trash2, Lock as LockIcon, Camera, Image as ImageIcon } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -52,6 +52,7 @@ export default function Chat() {
   const [editContent, setEditContent] = useState("");
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
   const [wallpaper, setWallpaper] = useState(() => localStorage.getItem(`wallpaper-${userId}`) || "");
+  const [showMediaOptions, setShowMediaOptions] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -329,10 +330,46 @@ export default function Chat() {
         {/* Input Area */}
         {isFollowing && (
           <div className="p-4 bg-background border-t border-border">
-            <div className="flex items-end gap-2 max-w-4xl mx-auto">
-              <button className="p-3 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl transition-all">
-                <Paperclip className="w-6 h-6" />
-              </button>
+            <div className="flex items-end gap-2 max-w-4xl mx-auto relative">
+              <div className="flex flex-col items-center">
+                {showMediaOptions && (
+                  <div className="absolute bottom-16 left-0 bg-background/95 backdrop-blur-md p-2 rounded-2xl border shadow-2xl z-50 animate-in slide-in-from-bottom-2 duration-200 flex flex-col gap-2">
+                    <button 
+                      onClick={() => {
+                        toast({ title: "Camera Opening...", description: "Requesting permissions" });
+                        setShowMediaOptions(false);
+                      }}
+                      className="p-3 hover:bg-primary/10 rounded-xl flex items-center gap-3 text-foreground transition-colors"
+                    >
+                      <div className="p-2 bg-blue-500 rounded-lg text-white">
+                        <Camera className="w-5 h-5" />
+                      </div>
+                      <span className="text-sm font-bold pr-4">Camera</span>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        toast({ title: "Gallery Opening...", description: "Accessing your photos" });
+                        setShowMediaOptions(false);
+                      }}
+                      className="p-3 hover:bg-primary/10 rounded-xl flex items-center gap-3 text-foreground transition-colors"
+                    >
+                      <div className="p-2 bg-purple-500 rounded-lg text-white">
+                        <ImageIcon className="w-5 h-5" />
+                      </div>
+                      <span className="text-sm font-bold pr-4">Gallery</span>
+                    </button>
+                  </div>
+                )}
+                <button 
+                  onClick={() => setShowMediaOptions(!showMediaOptions)}
+                  className={cn(
+                    "p-3 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl transition-all",
+                    showMediaOptions && "bg-primary/10 text-primary rotate-45"
+                  )}
+                >
+                  <Paperclip className="w-6 h-6" />
+                </button>
+              </div>
               <div className="flex-1 bg-secondary/50 rounded-2xl p-2 border border-transparent focus-within:bg-background focus-within:border-primary/20 focus-within:ring-2 focus-within:ring-primary/10 transition-all flex items-center">
                 <input
                   type="text"
