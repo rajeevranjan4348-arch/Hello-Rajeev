@@ -2,15 +2,41 @@ import { useUsers, useCurrentUser } from "@/hooks/use-users";
 import { Avatar } from "@/components/Avatar";
 import { Layout } from "@/components/Layout";
 import { Link, useLocation } from "wouter";
-import { Search, Plus, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { Search, Plus, Loader2, Bell } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Home() {
   const { data: currentUser } = useCurrentUser();
   const { data: users, isLoading } = useUsers();
   const [search, setSearch] = useState("");
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    // Notification sound logic (simulated for demo/capability)
+    const playNotification = () => {
+      if (!audioRef.current) {
+        audioRef.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3");
+      }
+      audioRef.current.play().catch(() => {});
+      toast({
+        title: "New Message",
+        description: "You have a new notification",
+        icon: <Bell className="w-4 h-4 text-primary" />,
+      });
+    };
+
+    // If users change and there's a new "online" status, trigger notification as a demo
+    const onlineCount = users?.filter(u => u.isOnline).length || 0;
+    if (onlineCount > 0 && currentUser) {
+      // Small delay to simulate incoming event
+      const timer = setTimeout(playNotification, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [users?.length, currentUser]);
 
   if (!currentUser) {
     // Landing page for unauthenticated users
@@ -51,6 +77,31 @@ export default function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
             </button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-muted-foreground/20"></span>
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground font-bold tracking-widest">Or</span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="relative group">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors">
+                  <span className="text-sm font-bold">+1</span>
+                </div>
+                <input 
+                  type="tel" 
+                  placeholder="Phone Number" 
+                  className="w-full pl-12 pr-4 py-4 rounded-2xl bg-secondary/50 border border-transparent focus:bg-background focus:border-primary/20 focus:ring-4 focus:ring-primary/10 transition-all outline-none font-medium placeholder:text-muted-foreground/70"
+                />
+              </div>
+              <button className="w-full py-4 rounded-2xl bg-secondary text-foreground font-bold hover:bg-secondary/80 transition-all active:scale-95">
+                Continue with Number
+              </button>
+            </div>
             
             <p className="text-xs text-muted-foreground/60 font-medium">
               We currently support Replit Auth for secure sign-in.
