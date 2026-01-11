@@ -2,7 +2,7 @@ import { useUsers, useCurrentUser } from "@/hooks/use-users";
 import { Avatar } from "@/components/Avatar";
 import { Layout } from "@/components/Layout";
 import { Link, useLocation } from "wouter";
-import { Search, Plus, Loader2, Bell } from "lucide-react";
+import { Search, Plus, Loader2, Bell, Shield } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -11,6 +11,12 @@ export default function Home() {
   const { data: currentUser } = useCurrentUser();
   const { data: users, isLoading } = useUsers();
   const [search, setSearch] = useState("");
+  const [showPermissionDialog, setShowPermissionDialog] = useState(() => !localStorage.getItem("zenix-permissions-accepted"));
+
+  const handleAcceptPermissions = () => {
+    localStorage.setItem("zenix-permissions-accepted", "true");
+    setShowPermissionDialog(false);
+  };
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -58,9 +64,9 @@ export default function Home() {
 
           <div className="space-y-4">
             <h1 className="text-5xl font-display font-black text-foreground leading-[1.1] tracking-tight">
-              Messaging 
+              Zenix 
               <br />
-              <span className="text-primary italic">Reimagined.</span>
+              <span className="text-primary italic">Messaging.</span>
             </h1>
             <p className="text-muted-foreground text-lg leading-relaxed font-medium px-4">
               Private, secure, and beautiful. Connect with anyone, anywhere, instantly.
@@ -90,7 +96,7 @@ export default function Home() {
             <div className="space-y-3">
               <div className="relative group">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors">
-                  <span className="text-sm font-bold">+1</span>
+                  <span className="text-sm font-bold">+91</span>
                 </div>
                 <input 
                   type="tel" 
@@ -194,6 +200,36 @@ export default function Home() {
           ))
         )}
       </div>
+
+      {/* Permission Dialog */}
+      {showPermissionDialog && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-background/80 backdrop-blur-lg animate-in fade-in duration-300">
+          <div className="bg-card w-full max-w-sm p-8 rounded-[2.5rem] border border-border shadow-2xl space-y-6 animate-in zoom-in-95 duration-300">
+            <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto">
+              <Shield className="w-10 h-10 text-primary" />
+            </div>
+            <div className="text-center space-y-2">
+              <h2 className="text-2xl font-display font-bold">Zenix Privacy</h2>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                To provide a secure messaging experience, we need your permission to access your profile and chats.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <button 
+                onClick={handleAcceptPermissions}
+                className="w-full py-4 bg-primary text-primary-foreground rounded-2xl font-bold shadow-lg shadow-primary/25 hover:scale-[1.02] active:scale-95 transition-all"
+              >
+                Accept and Continue
+              </button>
+              <div className="flex justify-center gap-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+                <Link href="/privacy" className="hover:text-primary">Privacy Policy</Link>
+                <span>•</span>
+                <Link href="/terms" className="hover:text-primary">Terms of Service</Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <button className="fixed bottom-24 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-lg shadow-primary/30 flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-300 z-40">
         <Plus className="w-7 h-7" />
