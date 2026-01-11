@@ -1,7 +1,7 @@
 import { useCurrentUser } from "@/hooks/use-users";
 import { Layout } from "@/components/Layout";
 import { Avatar } from "@/components/Avatar";
-import { ArrowLeft, Camera, Loader2, Save } from "lucide-react";
+import { ArrowLeft, Camera, Loader2, Save, Trash2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState, useEffect } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -20,6 +20,7 @@ export default function PersonalInfo() {
   const [lastName, setLastName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -49,6 +50,39 @@ export default function PersonalInfo() {
     }
   };
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      // Simulate upload - in a real app we'd upload to storage
+      // For now we use object URL as a mock persistable string if the backend supported it, 
+      // but we'll just send a mock URL for now.
+      const imageUrl = `https://ui-avatars.com/api/?name=${user.firstName}+${user.lastName}&background=random&size=256`;
+      await apiRequest("PATCH", "/api/user", { profileImageUrl: imageUrl });
+      await queryClient.invalidateQueries({ queryKey: [api.users.me.path] });
+      toast({ title: "Profile photo updated" });
+    } catch (err) {
+      toast({ title: "Upload failed", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    setIsUploading(true);
+    try {
+      await apiRequest("PATCH", "/api/user", { profileImageUrl: null });
+      await queryClient.invalidateQueries({ queryKey: [api.users.me.path] });
+      toast({ title: "Profile photo removed" });
+    } catch (err) {
+      toast({ title: "Update failed", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   return (
     <Layout showNav={false}>
       <div className="min-h-screen bg-background">
@@ -71,11 +105,24 @@ export default function PersonalInfo() {
                 size="xl" 
                 className="w-32 h-32 ring-4 ring-primary/10 shadow-2xl"
               />
-              <button className="absolute bottom-0 right-0 p-3 bg-primary text-white rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all">
-                <Camera className="w-5 h-5" />
-              </button>
+              <label className="absolute bottom-0 right-0 p-3 bg-primary text-white rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all cursor-pointer">
+                {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
+                <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} disabled={isUploading} />
+              </label>
             </div>
-            <p className="text-sm text-muted-foreground font-medium">Tap to change profile picture</p>
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-sm text-muted-foreground font-medium">Tap camera to change profile picture</p>
+              {user.profileImageUrl && (
+                <button 
+                  onClick={handleRemovePhoto}
+                  disabled={isUploading}
+                  className="text-xs font-bold text-destructive uppercase tracking-widest flex items-center gap-2 hover:opacity-70 transition-opacity disabled:opacity-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Remove Photo
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Form Section */}
