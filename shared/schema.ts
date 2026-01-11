@@ -17,6 +17,7 @@ export const messages = pgTable("messages", {
   isDeleted: text("is_deleted").default("false"),
   type: text("type").default("text"), // text, image, video, voice
   readAt: timestamp("read_at"),
+  expiresAt: timestamp("expires_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -74,7 +75,7 @@ export const callsRelations = relations(calls, ({ one }) => ({
 
 // === BASE SCHEMAS ===
 
-export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true, readAt: true, isEdited: true, isDeleted: true });
+export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true, readAt: true, expiresAt: true, isEdited: true, isDeleted: true });
 export const insertCallSchema = createInsertSchema(calls).omit({ id: true, createdAt: true });
 
 // === EXPLICIT API CONTRACT TYPES ===

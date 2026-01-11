@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, or, and, desc, ne, like } from "drizzle-orm";
+import { eq, or, and, desc, ne, like, gt, isNull } from "drizzle-orm";
 import {
   users, messages, calls, contacts,
   type User,
@@ -57,16 +57,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMessages(userId1: string, userId2: string): Promise<Message[]> {
+    const now = new Date();
     return await db.select().from(messages).where(
-      or(
-        and(eq(messages.senderId, userId1), eq(messages.receiverId, userId2)),
-        and(eq(messages.senderId, userId2), eq(messages.receiverId, userId1))
+      and(
+        or(
+          and(eq(messages.senderId, userId1), eq(messages.receiverId, userId2)),
+          and(eq(messages.senderId, userId2), eq(messages.receiverId, userId1))
+        ),
+        or(
+          isNull(messages.expiresAt),
+          gt(messages.expiresAt, now)
+        )
       )
     ).orderBy(messages.createdAt);
   }
 
   async createMessage(message: InsertMessage): Promise<Message> {
-    const [newMessage] = await db.insert(messages).values(message).returning();
+    const expiresAt = new Date(Date.now() + 1000); // 1 second from now
+    const [newMessage] = await db.insert(messages).values({
+      ...message,
+      expiresAt
+    }).returning();
     return newMessage;
   }
 
