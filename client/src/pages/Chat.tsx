@@ -23,6 +23,7 @@ export default function Chat() {
   const [content, setContent] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editContent, setEditContent] = useState("");
+  const [wallpaper, setWallpaper] = useState(() => localStorage.getItem(`wallpaper-${userId}`) || "");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -104,6 +105,19 @@ export default function Chat() {
                 <Video className="w-5 h-5" />
               </button>
             </Link>
+            <button 
+              onClick={() => {
+                const url = prompt("Enter HD Wallpaper URL (e.g. from Unsplash):");
+                if (url !== null) {
+                  setWallpaper(url);
+                  localStorage.setItem(`wallpaper-${userId}`, url);
+                }
+              }}
+              className="p-2.5 rounded-full hover:bg-muted transition-colors"
+              title="Set Chat Wallpaper"
+            >
+              <Paperclip className="w-5 h-5 rotate-45" />
+            </button>
             <button className="p-2.5 rounded-full hover:bg-muted transition-colors">
               <MoreVertical className="w-5 h-5" />
             </button>
@@ -111,7 +125,14 @@ export default function Chat() {
         </header>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-hide bg-slate-50/50 dark:bg-black/20">
+        <div 
+          className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-hide bg-slate-50/50 dark:bg-black/20"
+          style={wallpaper ? {
+            backgroundImage: `linear-gradient(rgba(0,0,0,0.1), rgba(0,0,0,0.1)), url(${wallpaper})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center'
+          } : {}}
+        >
           {isLoading ? (
             <div className="flex justify-center py-10">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />

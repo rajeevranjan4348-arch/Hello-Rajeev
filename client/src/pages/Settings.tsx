@@ -77,6 +77,7 @@ export default function Settings() {
       items: [
         { icon: Bell, label: "Notifications", onClick: () => {} },
         { icon: Moon, label: "Dark Mode", onClick: toggleTheme, toggle: true, value: isDark },
+        { icon: Pencil, label: "Chat History", onClick: () => setLocation("/") },
       ]
     },
     {
