@@ -31,9 +31,26 @@ export class DatabaseStorage implements IStorage {
     return authStorage.getUser(id);
   }
 
-  async getUsers(currentUserId: string): Promise<User[]> {
-    // Return all users except current
-    return await db.select().from(users).where(ne(users.id, currentUserId));
+  async getUsers(currentUserId: string): Promise<(User & { lastMessage?: Message })[]> {
+    const allUsers = await db.select().from(users).where(ne(users.id, currentUserId));
+    
+    // Add last message for each user
+    const usersWithMessages = await Promise.all(allUsers.map(async (user) => {
+      const [lastMessage] = await db.select()
+        .from(messages)
+        .where(
+          or(
+            and(eq(messages.senderId, currentUserId), eq(messages.receiverId, user.id)),
+            and(eq(messages.senderId, user.id), eq(messages.receiverId, currentUserId))
+          )
+        )
+        .orderBy(desc(messages.createdAt))
+        .limit(1);
+      
+      return { ...user, lastMessage };
+    }));
+
+    return usersWithMessages;
   }
 
   async searchUsers(query: string): Promise<User[]> {

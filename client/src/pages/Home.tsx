@@ -186,14 +186,14 @@ export default function Home() {
                   <h3 className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
                     {user.firstName} {user.lastName}
                   </h3>
-                  {user.lastSeen && (
+                  {(user as any).lastMessage?.createdAt && (
                     <span className="text-xs text-muted-foreground">
-                      {format(new Date(user.lastSeen), 'h:mm a')}
+                      {format(new Date((user as any).lastMessage.createdAt), 'h:mm a')}
                     </span>
                   )}
                 </div>
                 <p className="text-muted-foreground truncate text-sm">
-                  {user.phoneNumber || user.bio || "Available for chat"}
+                  {(user as any).lastMessage?.content || user.phoneNumber || user.bio || "No messages yet"}
                 </p>
               </div>
             </div>
