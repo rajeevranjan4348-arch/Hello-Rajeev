@@ -36,14 +36,17 @@ export default function CallsList() {
               const isOutgoing = call.callerId === user?.id;
               const otherPerson = isOutgoing ? call.callee : call.caller;
               
-              if (!otherPerson) return null;
+              const displayName = otherPerson 
+                ? `${otherPerson.firstName} ${otherPerson.lastName}`
+                : "Unknown User";
+              const avatarUrl = otherPerson?.profileImageUrl;
 
               return (
                 <div key={call.id} className="flex items-center justify-between p-4 rounded-2xl bg-card border border-border/50 shadow-sm">
                   <div className="flex items-center gap-4">
-                    <Avatar name={otherPerson.displayName} src={otherPerson.avatarUrl} size="md" />
+                    <Avatar name={displayName} src={avatarUrl} size="md" />
                     <div>
-                      <h3 className="font-semibold">{otherPerson.displayName}</h3>
+                      <h3 className="font-semibold">{displayName}</h3>
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         {isOutgoing ? (
                           <ArrowUpRight className="w-3 h-3 text-green-500" />
@@ -54,7 +57,7 @@ export default function CallsList() {
                       </div>
                     </div>
                   </div>
-                  <Link href={`/call/${otherPerson.id}?type=${call.type}`}>
+                  <Link href={`/call/${otherPerson?.id || call.calleeId}?type=${call.type}`}>
                     <button className="p-3 rounded-full bg-secondary text-foreground hover:bg-primary hover:text-white transition-all">
                       {call.type === 'video' ? <Video className="w-5 h-5" /> : <Phone className="w-5 h-5" />}
                     </button>

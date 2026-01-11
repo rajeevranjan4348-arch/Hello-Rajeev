@@ -16,8 +16,25 @@ export default function Call() {
   const { data: user } = useUser(userId);
   const { data: currentUser } = useCurrentUser();
   const { mutate: createCall } = useCreateCall();
+  const [callTime, setCallTime] = useState(0);
 
-  const [isMuted, setIsMuted] = useState(false);
+  useEffect(() => {
+    const timer = setInterval(() => setCallTime(prev => prev + 1), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleEndCall = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
+    setLocation("/");
+  };
   const [isVideoOff, setIsVideoOff] = useState(type === "voice");
   const [status, setStatus] = useState("Connecting...");
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -81,6 +98,9 @@ export default function Call() {
         />
         <h2 className="text-3xl font-display font-bold mt-4">{user.firstName} {user.lastName}</h2>
         <p className="text-white/60 font-medium tracking-wide animate-pulse">{status}</p>
+        <p className="text-2xl font-mono mt-2 opacity-60 tabular-nums">
+          {formatTime(callTime)}
+        </p>
       </div>
 
       {/* Video Placeholder (Self View) */}
@@ -110,7 +130,7 @@ export default function Call() {
           </button>
           
           <button 
-            onClick={() => setLocation(`/chat/${userId}`)}
+            onClick={handleEndCall}
             className="w-14 h-14 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg shadow-red-500/30 hover:bg-red-600 hover:scale-110 transition-all duration-200"
           >
             <PhoneOff className="w-7 h-7" />
