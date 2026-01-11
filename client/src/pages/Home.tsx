@@ -17,14 +17,15 @@ export default function Home() {
 
   useEffect(() => {
     // Notification sound logic (simulated for demo/capability)
-    const playNotification = () => {
+    const playNotification = (msg?: string) => {
       if (!audioRef.current) {
         audioRef.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3");
       }
       audioRef.current.play().catch(() => {});
       toast({
         title: "New Message",
-        description: "You have a new notification",
+        description: msg || "You have a new notification",
+        className: "bg-primary text-primary-foreground border-none shadow-2xl rounded-2xl",
       });
     };
 

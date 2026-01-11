@@ -37,14 +37,21 @@ export default function Chat() {
   const handleSend = () => {
     if (!content.trim() || !currentUser) return;
     
+    const messageContent = content.trim();
     sendMessage({
       senderId: currentUser.id,
       receiverId: userId,
-      content: content.trim(),
+      content: messageContent,
       type: "text",
     }, {
       onSuccess: () => {
         setContent("");
+        // Notify user locally for feedback
+        toast({
+          title: "Message Sent",
+          description: "Your message has been delivered",
+          duration: 2000,
+        });
       }
     });
   };
