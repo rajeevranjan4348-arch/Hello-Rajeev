@@ -74,6 +74,19 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/messages/:id", isAuthenticated, async (req: any, res) => {
+    const id = parseInt(req.params.id);
+    const { content } = req.body;
+    const message = await storage.updateMessage(id, content);
+    res.json(message);
+  });
+
+  app.delete("/api/messages/:id", isAuthenticated, async (req: any, res) => {
+    const id = parseInt(req.params.id);
+    const message = await storage.deleteMessage(id);
+    res.json(message);
+  });
+
   // === Call Routes ===
 
   app.get(api.calls.list.path, isAuthenticated, async (req: any, res) => {

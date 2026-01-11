@@ -2,7 +2,7 @@ import { db } from "./db";
 import { eq, or, and, desc, ne, like } from "drizzle-orm";
 import {
   users, messages, calls, contacts,
-  type User, type InsertUser,
+  type User,
   type Message, type InsertMessage,
   type Call, type InsertCall
 } from "@shared/schema";
@@ -18,6 +18,8 @@ export interface IStorage {
   // Message methods
   getMessages(userId1: string, userId2: string): Promise<Message[]>;
   createMessage(message: InsertMessage): Promise<Message>;
+  updateMessage(id: number, content: string): Promise<Message>;
+  deleteMessage(id: number): Promise<Message>;
   
   // Call methods
   createCall(call: InsertCall): Promise<Call>;
@@ -68,8 +70,24 @@ export class DatabaseStorage implements IStorage {
     return newMessage;
   }
 
+  async updateMessage(id: number, content: string): Promise<Message> {
+    const [updatedMessage] = await db.update(messages)
+      .set({ content, isEdited: "true" })
+      .where(eq(messages.id, id))
+      .returning();
+    return updatedMessage;
+  }
+
+  async deleteMessage(id: number): Promise<Message> {
+    const [deletedMessage] = await db.update(messages)
+      .set({ isDeleted: "true", content: "This message was deleted" })
+      .where(eq(messages.id, id))
+      .returning();
+    return deletedMessage;
+  }
+
   async createCall(call: InsertCall): Promise<Call> {
-    const [newCall] = await db.insert(calls).values(call).returning();
+    const [newCall] = await db.insert(calls).values(call as any).returning();
     return newCall;
   }
 

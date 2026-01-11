@@ -25,7 +25,6 @@ export default function Home() {
       toast({
         title: "New Message",
         description: "You have a new notification",
-        icon: <Bell className="w-4 h-4 text-primary" />,
       });
     };
 

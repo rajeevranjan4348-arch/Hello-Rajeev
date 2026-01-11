@@ -13,6 +13,8 @@ export const messages = pgTable("messages", {
   senderId: text("sender_id").notNull(), // Matching auth.users.id (varchar)
   receiverId: text("receiver_id").notNull(), // Matching auth.users.id (varchar)
   content: text("content").notNull(),
+  isEdited: text("is_edited").default("false"),
+  isDeleted: text("is_deleted").default("false"),
   type: text("type").default("text"), // text, image, video, voice
   readAt: timestamp("read_at"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -72,7 +74,7 @@ export const callsRelations = relations(calls, ({ one }) => ({
 
 // === BASE SCHEMAS ===
 
-export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true, readAt: true });
+export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true, readAt: true, isEdited: true, isDeleted: true });
 export const insertCallSchema = createInsertSchema(calls).omit({ id: true, createdAt: true });
 
 // === EXPLICIT API CONTRACT TYPES ===

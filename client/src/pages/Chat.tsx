@@ -3,10 +3,12 @@ import { useUser, useCurrentUser } from "@/hooks/use-users";
 import { Avatar } from "@/components/Avatar";
 import { Layout } from "@/components/Layout";
 import { Link, useRoute } from "wouter";
-import { ArrowLeft, Phone, Video, Send, Paperclip, Loader2, MoreVertical } from "lucide-react";
+import { ArrowLeft, Phone, Video, Send, Paperclip, Loader2, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Chat() {
   const [, params] = useRoute("/chat/:id");
@@ -16,8 +18,11 @@ export default function Chat() {
   const { data: currentUser } = useCurrentUser();
   const { data: messages, isLoading } = useMessages(userId);
   const { mutate: sendMessage, isPending: isSending } = useSendMessage();
+  const { toast } = useToast();
   
   const [content, setContent] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editContent, setEditContent] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -41,6 +46,28 @@ export default function Chat() {
         setContent("");
       }
     });
+  };
+
+  const handleUpdate = async (id: number) => {
+    if (!editContent.trim()) return;
+    try {
+      await apiRequest("PATCH", `/api/messages/${id}`, { content: editContent.trim() });
+      queryClient.invalidateQueries({ queryKey: ["/api/messages", userId] });
+      setEditingId(null);
+      toast({ title: "Message updated" });
+    } catch (err) {
+      toast({ title: "Update failed", variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      await apiRequest("DELETE", `/api/messages/${id}`);
+      queryClient.invalidateQueries({ queryKey: ["/api/messages", userId] });
+      toast({ title: "Message deleted" });
+    } catch (err) {
+      toast({ title: "Delete failed", variant: "destructive" });
+    }
   };
 
   if (!user || !currentUser) return null;
@@ -97,6 +124,7 @@ export default function Chat() {
             messages?.map((msg, idx) => {
               const isMe = msg.senderId === currentUser.id;
               const showAvatar = !isMe && (idx === 0 || messages[idx - 1].senderId !== msg.senderId);
+              const isEditing = editingId === msg.id;
               
               return (
                 <div 
@@ -115,13 +143,57 @@ export default function Chat() {
                       ? "bg-primary text-primary-foreground rounded-tr-sm" 
                       : "bg-white dark:bg-zinc-800 text-foreground rounded-tl-sm border border-border/50"
                   )}>
-                    <p>{msg.content}</p>
-                    <span className={cn(
-                      "text-[10px] block text-right mt-1 opacity-70",
-                      isMe ? "text-primary-foreground" : "text-muted-foreground"
-                    )}>
-                      {msg.createdAt && format(new Date(msg.createdAt), 'h:mm a')}
-                    </span>
+                    {isEditing ? (
+                      <div className="space-y-2 min-w-[200px]">
+                        <input
+                          type="text"
+                          value={editContent}
+                          onChange={(e) => setEditContent(e.target.value)}
+                          className="w-full bg-white/10 p-2 rounded border border-white/20 outline-none"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleUpdate(msg.id);
+                            if (e.key === 'Escape') setEditingId(null);
+                          }}
+                        />
+                        <div className="flex justify-end gap-2">
+                          <button onClick={() => setEditingId(null)} className="text-[10px] uppercase font-bold opacity-70">Cancel</button>
+                          <button onClick={() => handleUpdate(msg.id)} className="text-[10px] uppercase font-bold">Save</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p>{msg.content}</p>
+                        <div className="flex items-center justify-between gap-4 mt-1">
+                          <span className={cn(
+                            "text-[10px] opacity-70",
+                            isMe ? "text-primary-foreground" : "text-muted-foreground"
+                          )}>
+                            {msg.isEdited === "true" && "(edited) "}
+                            {msg.createdAt && format(new Date(msg.createdAt), 'h:mm a')}
+                          </span>
+                          {isMe && msg.isDeleted !== "true" && (
+                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button 
+                                onClick={() => {
+                                  setEditingId(msg.id);
+                                  setEditContent(msg.content);
+                                }}
+                                className="hover:scale-110 transition-transform"
+                              >
+                                <Pencil className="w-3 h-3" />
+                              </button>
+                              <button 
+                                onClick={() => handleDelete(msg.id)}
+                                className="hover:scale-110 transition-transform text-red-200"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               );
