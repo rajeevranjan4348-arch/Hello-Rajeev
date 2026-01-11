@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { MessageSquare, Phone, Users, Settings } from "lucide-react";
+import { MessageSquare, Phone, Users, Settings, Briefcase } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function BottomNav() {
@@ -8,6 +8,7 @@ export function BottomNav() {
   const navItems = [
     { icon: MessageSquare, label: "Chats", path: "/" },
     { icon: Phone, label: "Calls", path: "/calls" },
+    { icon: Briefcase, label: "Work", path: "/work" },
     { icon: Users, label: "People", path: "/people" },
     { icon: Settings, label: "Settings", path: "/settings" },
   ];
