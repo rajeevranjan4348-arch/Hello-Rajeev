@@ -23,8 +23,21 @@ export default function Chat() {
   const [content, setContent] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editContent, setEditContent] = useState("");
+  const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
   const [wallpaper, setWallpaper] = useState(() => localStorage.getItem(`wallpaper-${userId}`) || "");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+
+  const handleTouchStart = (msgId: number) => {
+    longPressTimer.current = setTimeout(() => {
+      setSelectedMessageId(msgId);
+      if (window.navigator.vibrate) window.navigator.vibrate(50);
+    }, 500);
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -157,7 +170,12 @@ export default function Chat() {
               return (
                 <div 
                   key={msg.id} 
-                  className={cn("flex gap-2 max-w-[80%]", isMe ? "ml-auto flex-row-reverse" : "")}
+                  className={cn("flex gap-2 max-w-[80%] relative", isMe ? "ml-auto flex-row-reverse" : "")}
+                  onMouseDown={() => isMe && handleTouchStart(msg.id)}
+                  onMouseUp={handleTouchEnd}
+                  onMouseLeave={handleTouchEnd}
+                  onTouchStart={() => isMe && handleTouchStart(msg.id)}
+                  onTouchEnd={handleTouchEnd}
                 >
                   {!isMe && (
                     <div className="w-8 flex-shrink-0">
@@ -166,11 +184,40 @@ export default function Chat() {
                   )}
                   
                   <div className={cn(
-                    "p-3.5 rounded-2xl shadow-sm text-sm relative group",
+                    "p-3.5 rounded-2xl shadow-sm text-sm relative group transition-all",
                     isMe 
                       ? "bg-primary text-primary-foreground rounded-tr-sm" 
-                      : "bg-white dark:bg-zinc-800 text-foreground rounded-tl-sm border border-border/50"
+                      : "bg-white dark:bg-zinc-800 text-foreground rounded-tl-sm border border-border/50",
+                    selectedMessageId === msg.id && "ring-4 ring-primary/30 scale-[1.02]"
                   )}>
+                    {selectedMessageId === msg.id && isMe && (
+                      <div className="absolute -top-12 right-0 flex gap-2 bg-background/95 backdrop-blur-md p-1.5 rounded-xl border shadow-xl z-50 animate-in fade-in zoom-in duration-200">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingId(msg.id);
+                            setEditContent(msg.content);
+                            setSelectedMessageId(null);
+                          }}
+                          className="p-2 hover:bg-muted rounded-lg flex items-center gap-2 text-foreground"
+                        >
+                          <Pencil className="w-4 h-4 text-primary" />
+                          <span className="text-xs font-bold">Edit</span>
+                        </button>
+                        <div className="w-px h-4 bg-border self-center" />
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(msg.id);
+                            setSelectedMessageId(null);
+                          }}
+                          className="p-2 hover:bg-red-500/10 rounded-lg flex items-center gap-2 text-red-500"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span className="text-xs font-bold">Delete</span>
+                        </button>
+                      </div>
+                    )}
                     {isEditing ? (
                       <div className="space-y-2 min-w-[200px]">
                         <input
