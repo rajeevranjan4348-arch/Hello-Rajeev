@@ -21,6 +21,33 @@ export default function Chat() {
   const { toast } = useToast();
   
   const [content, setContent] = useState("");
+  const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
+  const [isCheckingFollow, setIsCheckingFollow] = useState(true);
+
+  useEffect(() => {
+    const checkFollow = async () => {
+      try {
+        const res = await fetch(`/api/contacts/check/${userId}`);
+        const data = await res.json();
+        setIsFollowing(data.isFollowing);
+      } catch (err) {
+        console.error("Failed to check follow status", err);
+      } finally {
+        setIsCheckingFollow(false);
+      }
+    };
+    if (currentUser) checkFollow();
+  }, [userId, currentUser]);
+
+  const handleFollow = async () => {
+    try {
+      await apiRequest("POST", `/api/contacts/follow/${userId}`);
+      setIsFollowing(true);
+      toast({ title: "Now following" });
+    } catch (err) {
+      toast({ title: "Follow failed", variant: "destructive" });
+    }
+  };
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editContent, setEditContent] = useState("");
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
@@ -153,7 +180,29 @@ export default function Chat() {
             backgroundPosition: 'center'
           } : {}}
         >
-          {isLoading ? (
+          {isCheckingFollow ? (
+            <div className="flex justify-center py-10">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : !isFollowing ? (
+            <div className="flex flex-col items-center justify-center h-full space-y-6 text-center p-8 bg-background/40 backdrop-blur-sm rounded-3xl">
+              <div className="p-6 bg-primary/10 rounded-full">
+                <Lock className="w-12 h-12 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-display font-bold">Privacy Restriction</h2>
+                <p className="text-muted-foreground mt-2 max-w-xs">
+                  You can only view and send messages once you follow this person.
+                </p>
+              </div>
+              <button 
+                onClick={handleFollow}
+                className="px-8 py-3 bg-primary text-primary-foreground rounded-2xl font-bold shadow-lg shadow-primary/30 hover:scale-105 active:scale-95 transition-all"
+              >
+                Follow to Message
+              </button>
+            </div>
+          ) : isLoading ? (
             <div className="flex justify-center py-10">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
@@ -278,30 +327,32 @@ export default function Chat() {
         </div>
 
         {/* Input Area */}
-        <div className="p-4 bg-background border-t border-border">
-          <div className="flex items-end gap-2 max-w-4xl mx-auto">
-            <button className="p-3 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl transition-all">
-              <Paperclip className="w-6 h-6" />
-            </button>
-            <div className="flex-1 bg-secondary/50 rounded-2xl p-2 border border-transparent focus-within:bg-background focus-within:border-primary/20 focus-within:ring-2 focus-within:ring-primary/10 transition-all flex items-center">
-              <input
-                type="text"
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                placeholder="Type a message..."
-                className="flex-1 bg-transparent px-3 py-2 outline-none min-h-[44px]"
-              />
+        {isFollowing && (
+          <div className="p-4 bg-background border-t border-border">
+            <div className="flex items-end gap-2 max-w-4xl mx-auto">
+              <button className="p-3 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl transition-all">
+                <Paperclip className="w-6 h-6" />
+              </button>
+              <div className="flex-1 bg-secondary/50 rounded-2xl p-2 border border-transparent focus-within:bg-background focus-within:border-primary/20 focus-within:ring-2 focus-within:ring-primary/10 transition-all flex items-center">
+                <input
+                  type="text"
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                  placeholder="Type a message..."
+                  className="flex-1 bg-transparent px-3 py-2 outline-none min-h-[44px]"
+                />
+              </div>
+              <button 
+                onClick={handleSend}
+                disabled={!content.trim() || isSending}
+                className="p-3 bg-primary text-primary-foreground rounded-xl shadow-lg shadow-primary/25 hover:shadow-xl hover:scale-105 active:scale-95 disabled:opacity-50 disabled:shadow-none disabled:transform-none transition-all duration-200"
+              >
+                {isSending ? <Loader2 className="w-6 h-6 animate-spin" /> : <Send className="w-6 h-6" />}
+              </button>
             </div>
-            <button 
-              onClick={handleSend}
-              disabled={!content.trim() || isSending}
-              className="p-3 bg-primary text-primary-foreground rounded-xl shadow-lg shadow-primary/25 hover:shadow-xl hover:scale-105 active:scale-95 disabled:opacity-50 disabled:shadow-none disabled:transform-none transition-all duration-200"
-            >
-              {isSending ? <Loader2 className="w-6 h-6 animate-spin" /> : <Send className="w-6 h-6" />}
-            </button>
           </div>
-        </div>
+        )}
       </div>
     </Layout>
   );

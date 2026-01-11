@@ -96,6 +96,23 @@ export class DatabaseStorage implements IStorage {
       or(eq(calls.callerId, userId), eq(calls.calleeId, userId))
     ).orderBy(desc(calls.startedAt));
   }
+
+  async isFollowing(userId: string, contactId: string): Promise<boolean> {
+    const [follow] = await db.select().from(contacts).where(
+      and(eq(contacts.userId, userId), eq(contacts.contactId, contactId))
+    );
+    return !!follow;
+  }
+
+  async followUser(userId: string, contactId: string): Promise<void> {
+    await db.insert(contacts).values({ userId, contactId });
+  }
+
+  async unfollowUser(userId: string, contactId: string): Promise<void> {
+    await db.delete(contacts).where(
+      and(eq(contacts.userId, userId), eq(contacts.contactId, contactId))
+    );
+  }
 }
 
 export const storage = new DatabaseStorage();

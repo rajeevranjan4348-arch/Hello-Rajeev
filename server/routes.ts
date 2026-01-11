@@ -109,5 +109,20 @@ export async function registerRoutes(
     res.status(201).json(call);
   });
 
+  app.get("/api/contacts/check/:contactId", isAuthenticated, async (req: any, res) => {
+    const isFollowing = await storage.isFollowing(req.user.claims.sub, req.params.contactId);
+    res.json({ isFollowing });
+  });
+
+  app.post("/api/contacts/follow/:contactId", isAuthenticated, async (req: any, res) => {
+    await storage.followUser(req.user.claims.sub, req.params.contactId);
+    res.json({ success: true });
+  });
+
+  app.post("/api/contacts/unfollow/:contactId", isAuthenticated, async (req: any, res) => {
+    await storage.unfollowUser(req.user.claims.sub, req.params.contactId);
+    res.json({ success: true });
+  });
+
   return httpServer;
 }
