@@ -3,7 +3,7 @@ import { useUser, useCurrentUser } from "@/hooks/use-users";
 import { Avatar } from "@/components/Avatar";
 import { Layout } from "@/components/Layout";
 import { Link, useRoute } from "wouter";
-import { ArrowLeft, Phone, Video, Send, Paperclip, Loader2, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Phone, Video, Send, Paperclip, Loader2, MoreVertical, Pencil, Trash2, Lock as LockIcon } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -187,7 +187,7 @@ export default function Chat() {
           ) : !isFollowing ? (
             <div className="flex flex-col items-center justify-center h-full space-y-6 text-center p-8 bg-background/40 backdrop-blur-sm rounded-3xl">
               <div className="p-6 bg-primary/10 rounded-full">
-                <Lock className="w-12 h-12 text-primary" />
+                <LockIcon className="w-12 h-12 text-primary" />
               </div>
               <div>
                 <h2 className="text-2xl font-display font-bold">Privacy Restriction</h2>
