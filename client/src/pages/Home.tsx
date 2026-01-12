@@ -13,62 +13,107 @@ export default function Home() {
   const { data: users, isLoading } = useUsers();
   const [search, setSearch] = useState("");
   const [showPermissionDialog, setShowPermissionDialog] = useState(() => !localStorage.getItem("zenix-permissions-accepted"));
+  const [showOtpScreen, setShowOtpScreen] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [timer, setTimer] = useState(0);
+  const otpInputs = useRef<(HTMLInputElement | null)[]>([]);
   const socketRef = useRef<Socket | null>(null);
 
-  const handleAcceptPermissions = () => {
-    localStorage.setItem("zenix-permissions-accepted", "true");
-    setShowPermissionDialog(false);
-    if ("Notification" in window) {
-      Notification.requestPermission();
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (timer > 0) {
+      interval = setInterval(() => setTimer((prev) => prev - 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [timer]);
+
+  const handleSendOtp = () => {
+    if (phoneNumber.length < 10) {
+      toast({ title: "Invalid Number", description: "Please enter a valid phone number", variant: "destructive" });
+      return;
+    }
+    setShowOtpScreen(true);
+    setTimer(30);
+    toast({ title: "OTP Sent", description: "A 6-digit code has been sent to your number (Demo)" });
+  };
+
+  const handleOtpChange = (index: number, value: string) => {
+    if (isNaN(Number(value))) return;
+    const newOtp = [...otp];
+    newOtp[index] = value.slice(-1);
+    setOtp(newOtp);
+
+    if (value && index < 5) {
+      otpInputs.current[index + 1]?.focus();
+    }
+
+    if (newOtp.every(digit => digit !== "")) {
+      // Mock verification
+      toast({ title: "Logging in...", description: "Verifying your code" });
+      setTimeout(() => {
+        window.location.href = "/api/login"; // Redirect to real auth for now
+      }, 1500);
     }
   };
-  const [, setLocation] = useLocation();
-  const { toast } = useToast();
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  useEffect(() => {
-    if (!currentUser) return;
-
-    socketRef.current = io(window.location.origin, {
-      query: { userId: currentUser.id }
-    });
-
-    socketRef.current.on("new-message", (message) => {
-      const isChatOpen = window.location.pathname.includes(`/chat/${message.senderId}`);
-      if (!isChatOpen) {
-        // Quick sound alert
-        if (!audioRef.current) {
-          audioRef.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3");
-        }
-        audioRef.current.play().catch(() => {});
-
-        // Browser notification
-        if ("Notification" in window && Notification.permission === "granted") {
-          const sender = users?.find(u => u.id === message.senderId);
-          const title = sender ? `${sender.firstName} ${sender.lastName}` : "New Message";
-          const body = message.content;
-          
-          new Notification(title, {
-            body,
-            icon: sender?.profileImageUrl || `https://ui-avatars.com/api/?name=${title}&background=random`
-          });
-        }
-
-        toast({
-          title: "New Message",
-          description: message.content,
-          className: "bg-primary text-primary-foreground border-none shadow-2xl rounded-2xl",
-        });
-      }
-    });
-
-    return () => {
-      socketRef.current?.disconnect();
-    };
-  }, [currentUser, users]);
+  const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      otpInputs.current[index - 1]?.focus();
+    }
+  };
 
   if (!currentUser) {
-    // Landing page for unauthenticated users
+    if (showOtpScreen) {
+      return (
+        <div className="min-h-screen w-full flex flex-col items-center justify-center p-6 bg-background">
+          <div className="w-full max-w-sm space-y-8 text-center">
+            <div className="space-y-2">
+              <h1 className="text-3xl font-display font-black">Verify Number</h1>
+              <p className="text-muted-foreground font-medium">
+                Enter the code sent to <span className="text-foreground">+91 {phoneNumber}</span>
+              </p>
+            </div>
+
+            <div className="flex justify-between gap-2">
+              {otp.map((digit, idx) => (
+                <input
+                  key={idx}
+                  ref={(el) => (otpInputs.current[idx] = el)}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleOtpChange(idx, e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(idx, e)}
+                  className="w-12 h-14 text-center text-2xl font-bold rounded-xl bg-secondary/50 border-2 border-transparent focus:border-primary focus:bg-background outline-none transition-all"
+                />
+              ))}
+            </div>
+
+            <div className="space-y-4">
+              <button
+                disabled={timer > 0}
+                onClick={() => {
+                  setTimer(30);
+                  toast({ title: "Code Resent" });
+                }}
+                className="text-sm font-bold text-primary disabled:text-muted-foreground uppercase tracking-widest"
+              >
+                {timer > 0 ? `Resend code in ${timer}s` : "Resend code"}
+              </button>
+              <button
+                onClick={() => setShowOtpScreen(false)}
+                className="w-full py-4 text-muted-foreground font-bold hover:text-foreground transition-colors"
+              >
+                Edit Number
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen w-full flex flex-col items-center justify-center p-6 bg-gradient-to-br from-background via-background to-primary/10 overflow-hidden relative">
         {/* Animated background elements */}
@@ -124,10 +169,15 @@ export default function Home() {
                 <input 
                   type="tel" 
                   placeholder="Phone Number" 
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
                   className="w-full pl-12 pr-4 py-4 rounded-2xl bg-secondary/50 border border-transparent focus:bg-background focus:border-primary/20 focus:ring-4 focus:ring-primary/10 transition-all outline-none font-medium placeholder:text-muted-foreground/70"
                 />
               </div>
-              <button className="w-full py-4 rounded-2xl bg-secondary text-foreground font-bold hover:bg-secondary/80 transition-all active:scale-95">
+              <button 
+                onClick={handleSendOtp}
+                className="w-full py-4 rounded-2xl bg-secondary text-foreground font-bold hover:bg-secondary/80 transition-all active:scale-95"
+              >
                 Continue with Number
               </button>
             </div>
