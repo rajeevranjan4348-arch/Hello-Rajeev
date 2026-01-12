@@ -2,9 +2,69 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { Server } from "socket.io";
 
 const app = express();
 const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
+// Manage user presence and socket mapping
+const userSockets = new Map<string, string>();
+
+io.on("connection", (socket) => {
+  const userId = socket.handshake.query.userId as string;
+  if (userId) {
+    userSockets.set(userId, socket.id);
+    console.log(`User ${userId} connected with socket ${socket.id}`);
+  }
+
+  socket.on("call-user", ({ to, offer, type }) => {
+    const targetSocket = userSockets.get(to);
+    if (targetSocket) {
+      io.to(targetSocket).emit("incoming-call", { from: userId, offer, type });
+    }
+  });
+
+  socket.on("answer-call", ({ to, answer }) => {
+    const targetSocket = userSockets.get(to);
+    if (targetSocket) {
+      io.to(targetSocket).emit("call-answered", { from: userId, answer });
+    }
+  });
+
+  socket.on("ice-candidate", ({ to, candidate }) => {
+    const targetSocket = userSockets.get(to);
+    if (targetSocket) {
+      io.to(targetSocket).emit("ice-candidate", { from: userId, candidate });
+    }
+  });
+
+  socket.on("reject-call", ({ to }) => {
+    const targetSocket = userSockets.get(to);
+    if (targetSocket) {
+      io.to(targetSocket).emit("call-rejected", { from: userId });
+    }
+  });
+
+  socket.on("end-call", ({ to }) => {
+    const targetSocket = userSockets.get(to);
+    if (targetSocket) {
+      io.to(targetSocket).emit("call-ended", { from: userId });
+    }
+  });
+
+  socket.on("disconnect", () => {
+    if (userId) {
+      userSockets.delete(userId);
+      console.log(`User ${userId} disconnected`);
+    }
+  });
+});
 
 declare module "http" {
   interface IncomingMessage {
