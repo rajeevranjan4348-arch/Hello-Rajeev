@@ -87,12 +87,6 @@ export default function Chat() {
     }, {
       onSuccess: () => {
         setContent("");
-        // Notify user locally for feedback
-        toast({
-          title: "Message Sent",
-          description: "Your message has been delivered",
-          duration: 2000,
-        });
       }
     });
   };

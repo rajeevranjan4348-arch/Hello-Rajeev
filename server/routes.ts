@@ -48,8 +48,8 @@ export async function registerRoutes(
   app.get(api.messages.list.path, isAuthenticated, async (req: any, res) => {
     const partnerId = req.params.userId;
     const currentUserId = req.user.claims.sub;
-    const messages = await storage.getMessages(currentUserId, partnerId);
-    res.json(messages);
+    const msgs = await storage.getMessages(currentUserId, partnerId);
+    res.json(msgs);
   });
 
   app.post(api.messages.send.path, isAuthenticated, async (req: any, res) => {

@@ -74,27 +74,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMessages(userId1: string, userId2: string): Promise<Message[]> {
-    const now = new Date();
     return await db.select().from(messages).where(
-      and(
-        or(
-          and(eq(messages.senderId, userId1), eq(messages.receiverId, userId2)),
-          and(eq(messages.senderId, userId2), eq(messages.receiverId, userId1))
-        ),
-        or(
-          isNull(messages.expiresAt),
-          gt(messages.expiresAt, now)
-        )
+      or(
+        and(eq(messages.senderId, userId1), eq(messages.receiverId, userId2)),
+        and(eq(messages.senderId, userId2), eq(messages.receiverId, userId1))
       )
     ).orderBy(messages.createdAt);
   }
 
   async createMessage(message: InsertMessage): Promise<Message> {
-    const expiresAt = new Date(Date.now() + 1000); // 1 second from now
-    const [newMessage] = await db.insert(messages).values({
-      ...message,
-      expiresAt
-    }).returning();
+    const [newMessage] = await db.insert(messages).values(message).returning();
     return newMessage;
   }
 
