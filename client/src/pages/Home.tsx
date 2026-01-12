@@ -6,43 +6,66 @@ import { Search, Plus, Loader2, Bell, Shield } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { io, Socket } from "socket.io-client";
 
 export default function Home() {
   const { data: currentUser } = useCurrentUser();
   const { data: users, isLoading } = useUsers();
   const [search, setSearch] = useState("");
   const [showPermissionDialog, setShowPermissionDialog] = useState(() => !localStorage.getItem("zenix-permissions-accepted"));
+  const socketRef = useRef<Socket | null>(null);
 
   const handleAcceptPermissions = () => {
     localStorage.setItem("zenix-permissions-accepted", "true");
     setShowPermissionDialog(false);
+    if ("Notification" in window) {
+      Notification.requestPermission();
+    }
   };
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // Notification sound logic (simulated for demo/capability)
-    const playNotification = (msg?: string) => {
-      if (!audioRef.current) {
-        audioRef.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3");
-      }
-      audioRef.current.play().catch(() => {});
-      toast({
-        title: "New Message",
-        description: msg || "You have a new notification",
-        className: "bg-primary text-primary-foreground border-none shadow-2xl rounded-2xl",
-      });
-    };
+    if (!currentUser) return;
 
-    // If users change and there's a new "online" status, trigger notification as a demo
-    const onlineCount = users?.filter(u => u.isOnline).length || 0;
-    if (onlineCount > 0 && currentUser) {
-      // Small delay to simulate incoming event
-      const timer = setTimeout(playNotification, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [users?.length, currentUser]);
+    socketRef.current = io(window.location.origin, {
+      query: { userId: currentUser.id }
+    });
+
+    socketRef.current.on("new-message", (message) => {
+      const isChatOpen = window.location.pathname.includes(`/chat/${message.senderId}`);
+      if (!isChatOpen) {
+        // Quick sound alert
+        if (!audioRef.current) {
+          audioRef.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3");
+        }
+        audioRef.current.play().catch(() => {});
+
+        // Browser notification
+        if ("Notification" in window && Notification.permission === "granted") {
+          const sender = users?.find(u => u.id === message.senderId);
+          const title = sender ? `${sender.firstName} ${sender.lastName}` : "New Message";
+          const body = message.content;
+          
+          new Notification(title, {
+            body,
+            icon: sender?.profileImageUrl || `https://ui-avatars.com/api/?name=${title}&background=random`
+          });
+        }
+
+        toast({
+          title: "New Message",
+          description: message.content,
+          className: "bg-primary text-primary-foreground border-none shadow-2xl rounded-2xl",
+        });
+      }
+    });
+
+    return () => {
+      socketRef.current?.disconnect();
+    };
+  }, [currentUser, users]);
 
   if (!currentUser) {
     // Landing page for unauthenticated users

@@ -30,6 +30,13 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on("send-message", ({ to, content }) => {
+    const targetSocket = userSockets.get(to);
+    if (targetSocket) {
+      io.to(targetSocket).emit("new-message", { senderId: userId, content });
+    }
+  });
+
   socket.on("answer-call", ({ to, answer }) => {
     const targetSocket = userSockets.get(to);
     if (targetSocket) {
