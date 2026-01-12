@@ -127,7 +127,7 @@ export default function Call() {
       
       socketRef.current?.emit("call-user", { to: userId, offer, type });
       setStatus("Ringing...");
-      createCall({ calleeId: userId, type });
+      createCall({ calleeId: userId, type: type as any });
     } catch (err) {
       console.error("Call start failed:", err);
       setStatus("Error starting call");

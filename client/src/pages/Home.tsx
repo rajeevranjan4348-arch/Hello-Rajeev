@@ -19,6 +19,8 @@ export default function Home() {
   const [timer, setTimer] = useState(0);
   const otpInputs = useRef<(HTMLInputElement | null)[]>([]);
   const socketRef = useRef<Socket | null>(null);
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -60,6 +62,14 @@ export default function Home() {
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
     if (e.key === "Backspace" && !otp[index] && index > 0) {
       otpInputs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleAcceptPermissions = () => {
+    localStorage.setItem("zenix-permissions-accepted", "true");
+    setShowPermissionDialog(false);
+    if ("Notification" in window) {
+      Notification.requestPermission();
     }
   };
 

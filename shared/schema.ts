@@ -76,7 +76,7 @@ export const callsRelations = relations(calls, ({ one }) => ({
 // === BASE SCHEMAS ===
 
 export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true, readAt: true, expiresAt: true, isEdited: true, isDeleted: true });
-export const insertCallSchema = createInsertSchema(calls).omit({ id: true, createdAt: true });
+export const insertCallSchema = createInsertSchema(calls).omit({ id: true, startedAt: true, endedAt: true });
 
 // === EXPLICIT API CONTRACT TYPES ===
 
