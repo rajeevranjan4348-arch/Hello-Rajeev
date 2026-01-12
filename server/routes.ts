@@ -104,7 +104,6 @@ export async function registerRoutes(
       calleeId: String(calleeId), // Ensure string
       type,
       status: 'started',
-      startedAt: new Date()
     });
     res.status(201).json(call);
   });
