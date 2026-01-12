@@ -285,11 +285,19 @@ export default function Chat() {
                         <p>{msg.content}</p>
                         <div className="flex items-center justify-between gap-4 mt-1">
                           <span className={cn(
-                            "text-[10px] opacity-70",
+                            "text-[10px] opacity-70 flex items-center gap-1",
                             isMe ? "text-primary-foreground" : "text-muted-foreground"
                           )}>
                             {msg.isEdited === "true" && "(edited) "}
                             {msg.createdAt && format(new Date(msg.createdAt), 'h:mm a')}
+                            {isMe && (
+                              <span className={cn(
+                                "text-[12px]",
+                                msg.readAt ? "text-blue-400" : "text-white/60"
+                              )}>
+                                ⭐
+                              </span>
+                            )}
                           </span>
                           {isMe && msg.isDeleted !== "true" && (
                             <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

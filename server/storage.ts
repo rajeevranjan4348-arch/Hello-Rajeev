@@ -103,6 +103,18 @@ export class DatabaseStorage implements IStorage {
     return deletedMessage;
   }
 
+  async markMessagesAsRead(senderId: string, receiverId: string): Promise<void> {
+    await db.update(messages)
+      .set({ readAt: new Date() })
+      .where(
+        and(
+          eq(messages.senderId, senderId),
+          eq(messages.receiverId, receiverId),
+          isNull(messages.readAt)
+        )
+      );
+  }
+
   async createCall(call: InsertCall): Promise<Call> {
     const [newCall] = await db.insert(calls).values(call as any).returning();
     return newCall;
