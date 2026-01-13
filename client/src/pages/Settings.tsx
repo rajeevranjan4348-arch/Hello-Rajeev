@@ -2,7 +2,7 @@ import { useCurrentUser } from "@/hooks/use-users";
 import { useAuth } from "@/hooks/use-auth";
 import { Layout } from "@/components/Layout";
 import { Avatar } from "@/components/Avatar";
-import { Bell, Moon, Lock, HelpCircle, LogOut, ChevronRight, User, Pencil } from "lucide-react";
+import { Bell, Moon, Lock, HelpCircle, LogOut, ChevronRight, User, Pencil, Shield, Settings as SettingsIcon, Monitor, Star, UserCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
@@ -68,8 +68,16 @@ export default function Settings() {
     {
       title: "Account",
       items: [
-        { icon: User, label: "Personal Info", onClick: () => setLocation("/settings/personal") },
-        { icon: Lock, label: "Privacy & Security", onClick: () => setLocation("/settings/privacy") },
+        { icon: UserCircle, label: "Edit Profile", onClick: () => setLocation("/personal-info") },
+        { icon: Shield, label: "Privacy Settings", onClick: () => setLocation("/privacy") },
+        { icon: User, label: "Account Settings", onClick: () => setLocation("/account") },
+      ]
+    },
+    {
+      title: "Devices & Messages",
+      items: [
+        { icon: Monitor, label: "Linked Devices", onClick: () => setLocation("/devices") },
+        { icon: Star, label: "Starred Messages", onClick: () => setLocation("/starred") },
       ]
     },
     {
@@ -77,33 +85,31 @@ export default function Settings() {
       items: [
         { icon: Bell, label: "Notifications", onClick: () => {} },
         { icon: Moon, label: "Dark Mode", onClick: toggleTheme, toggle: true, value: isDark },
-        { icon: Pencil, label: "Chat History", onClick: () => setLocation("/") },
+        { icon: SettingsIcon, label: "App Settings", onClick: () => setLocation("/app-settings") },
       ]
     },
     {
       title: "Support",
       items: [
-        { icon: HelpCircle, label: "Help & FAQ", onClick: () => {} },
-        { icon: Lock, label: "Privacy Policy", onClick: () => setLocation("/privacy") },
-        { icon: ChevronRight, label: "Terms of Service", onClick: () => setLocation("/terms") },
+        { icon: HelpCircle, label: "Help & Support", onClick: () => setLocation("/help") },
+        { icon: Lock, label: "Privacy Policy", onClick: () => setLocation("/privacy-policy") },
       ]
     }
   ];
 
   return (
     <Layout>
-      <div className="p-6 space-y-8 max-w-3xl mx-auto">
+      <div className="p-6 pb-24 max-w-3xl mx-auto space-y-8">
         <header className="flex justify-between items-center">
           <h1 className="text-3xl font-display font-bold">Settings</h1>
         </header>
 
-        {/* Profile Card */}
-        <div className="p-8 rounded-[2.5rem] bg-gradient-to-br from-primary via-primary to-blue-600 text-white shadow-2xl shadow-primary/20 relative overflow-hidden group">
-          <div className="absolute -top-24 -right-24 w-64 h-64 bg-white/10 rounded-full blur-3xl group-hover:scale-125 transition-transform duration-700" />
-          <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-black/10 rounded-full blur-3xl group-hover:scale-125 transition-transform duration-700" />
-          
-          <div className="relative z-10 space-y-6">
-            <div className="flex items-center gap-6">
+        <Link href="/personal-info">
+          <div className="p-8 rounded-[2.5rem] bg-gradient-to-br from-primary via-primary to-blue-600 text-white shadow-2xl shadow-primary/20 relative overflow-hidden group cursor-pointer transition-all hover:scale-[1.01]">
+            <div className="absolute -top-24 -right-24 w-64 h-64 bg-white/10 rounded-full blur-3xl group-hover:scale-125 transition-transform duration-700" />
+            <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-black/10 rounded-full blur-3xl group-hover:scale-125 transition-transform duration-700" />
+            
+            <div className="relative z-10 flex items-center gap-6">
               <Avatar 
                 name={`${user.firstName} ${user.lastName}`} 
                 src={user.profileImageUrl} 
@@ -128,60 +134,13 @@ export default function Settings() {
                   )}
                 </div>
               </div>
-            </div>
-
-            <div className="pt-6 border-t border-white/10">
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white/60">Bio</h3>
-                <button 
-                  onClick={() => setIsEditingBio(!isEditingBio)}
-                  className="p-2 rounded-full hover:bg-white/10 transition-colors"
-                >
-                  <Pencil className="w-4 h-4" />
-                </button>
-              </div>
-              
-              {isEditingBio ? (
-                <div className="space-y-3">
-                  <Textarea 
-                    value={bio}
-                    onChange={(e) => setBio(e.target.value)}
-                    placeholder="Tell us about yourself..."
-                    className="bg-white/10 border-white/20 text-white placeholder:text-white/40 min-h-[100px] rounded-2xl focus:ring-white/20"
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="text-white hover:bg-white/10"
-                      onClick={() => {
-                        setBio(user.bio || "");
-                        setIsEditingBio(false);
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      className="bg-white text-primary hover:bg-white/90"
-                      onClick={handleUpdateBio}
-                      disabled={isUpdating}
-                    >
-                      Save Changes
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-white/90 leading-relaxed font-medium">
-                  {user.bio || "No bio yet. Tap the pencil to add one!"}
-                </p>
-              )}
+              <ChevronRight className="w-6 h-6 text-white/60" />
             </div>
           </div>
-        </div>
+        </Link>
 
         {/* Settings Sections */}
-        <div className="space-y-6">
+        <div className="space-y-8">
           {sections.map((section, idx) => (
             <div key={idx} className="space-y-4">
               <h3 className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em] ml-4">{section.title}</h3>
@@ -220,7 +179,7 @@ export default function Settings() {
           ))}
 
           <button 
-            onClick={() => logout()}
+            onClick={() => window.location.href = "/api/logout"}
             className="w-full p-6 rounded-[2rem] bg-red-500/10 text-red-500 font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 hover:bg-red-500 hover:text-white transition-all duration-300 shadow-lg shadow-red-500/5 active:scale-95"
           >
             <LogOut className="w-5 h-5" />
