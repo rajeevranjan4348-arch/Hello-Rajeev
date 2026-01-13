@@ -2,11 +2,18 @@ import { useUsers, useCurrentUser } from "@/hooks/use-users";
 import { Avatar } from "@/components/Avatar";
 import { Layout } from "@/components/Layout";
 import { Link, useLocation } from "wouter";
-import { Search, Plus, Loader2, Bell, Shield, MoreVertical } from "lucide-react";
+import { Search, Plus, Loader2, Bell, Shield, MoreVertical, UserPlus, Users, Radio, Laptop, Star, History, Archive, CheckSquare, Settings, HelpCircle, LogOut } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { io, Socket } from "socket.io-client";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function Home() {
   const { data: currentUser } = useCurrentUser();
@@ -227,9 +234,71 @@ export default function Home() {
             <h1 className="text-3xl font-display font-bold">Messages</h1>
             <p className="text-muted-foreground font-medium">{filteredUsers?.length || 0} contacts available</p>
           </div>
-          <button className="p-2.5 rounded-full hover:bg-muted transition-colors">
-            <MoreVertical className="w-6 h-6" />
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="p-2.5 rounded-full hover:bg-muted transition-colors outline-none">
+                <MoreVertical className="w-6 h-6" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2 shadow-xl border-border bg-background/95 backdrop-blur-md">
+              <DropdownMenuItem className="rounded-xl flex items-center gap-3 py-3 cursor-pointer">
+                <Plus className="w-4 h-4" />
+                <span className="font-medium">New Chat</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem className="rounded-xl flex items-center gap-3 py-3 cursor-pointer">
+                <Users className="w-4 h-4" />
+                <span className="font-medium">New Group</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem className="rounded-xl flex items-center gap-3 py-3 cursor-pointer">
+                <Radio className="w-4 h-4" />
+                <span className="font-medium">New Broadcast</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="my-2" />
+              <DropdownMenuItem className="rounded-xl flex items-center gap-3 py-3 cursor-pointer">
+                <Laptop className="w-4 h-4" />
+                <span className="font-medium">Linked Devices</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem className="rounded-xl flex items-center gap-3 py-3 cursor-pointer">
+                <Star className="w-4 h-4" />
+                <span className="font-medium">Starred Messages</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem className="rounded-xl flex items-center gap-3 py-3 cursor-pointer">
+                <History className="w-4 h-4" />
+                <span className="font-medium">Status / Stories</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem className="rounded-xl flex items-center gap-3 py-3 cursor-pointer">
+                <Archive className="w-4 h-4" />
+                <span className="font-medium">Archived Chats</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem className="rounded-xl flex items-center gap-3 py-3 cursor-pointer">
+                <CheckSquare className="w-4 h-4" />
+                <span className="font-medium">Select Chats</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="my-2" />
+              <DropdownMenuItem asChild>
+                <Link href="/settings" className="rounded-xl flex items-center gap-3 py-3 cursor-pointer">
+                  <Settings className="w-4 h-4" />
+                  <span className="font-medium">App Settings</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem className="rounded-xl flex items-center gap-3 py-3 cursor-pointer">
+                <HelpCircle className="w-4 h-4" />
+                <span className="font-medium">Help & Support</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem className="rounded-xl flex items-center gap-3 py-3 cursor-pointer text-primary">
+                <UserPlus className="w-4 h-4" />
+                <span className="font-medium">Invite Friends</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="my-2" />
+              <DropdownMenuItem 
+                className="rounded-xl flex items-center gap-3 py-3 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
+                onClick={() => window.location.href = "/api/logout"}
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="font-medium">Logout</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </header>
 
         <div className="relative group">
