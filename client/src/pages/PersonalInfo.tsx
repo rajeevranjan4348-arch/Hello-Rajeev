@@ -19,6 +19,10 @@ export default function PersonalInfo() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [bio, setBio] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [isPhoneNumberPublic, setIsPhoneNumberPublic] = useState(false);
+  const [isBioPublic, setIsBioPublic] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -27,6 +31,10 @@ export default function PersonalInfo() {
       setFirstName(user.firstName || "");
       setLastName(user.lastName || "");
       setPhoneNumber(user.phoneNumber || "");
+      setBio(user.bio || "");
+      setBirthDate(user.birthDate ? new Date(user.birthDate).toISOString().split('T')[0] : "");
+      setIsPhoneNumberPublic(user.isPhoneNumberPublic || false);
+      setIsBioPublic(user.isBioPublic !== false);
     }
   }, [user]);
 
@@ -38,7 +46,11 @@ export default function PersonalInfo() {
       await apiRequest("PATCH", "/api/user", {
         firstName,
         lastName,
-        phoneNumber
+        phoneNumber,
+        bio,
+        birthDate: birthDate ? new Date(birthDate).toISOString() : null,
+        isPhoneNumberPublic,
+        isBioPublic
       });
       await queryClient.invalidateQueries({ queryKey: [api.users.me.path] });
       toast({ title: "Profile updated", description: "Your personal information has been saved." });
@@ -154,9 +166,51 @@ export default function PersonalInfo() {
                 id="phone"
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="+1 (555) 000-0000"
+                placeholder="+91 0000000000"
                 className="h-14 rounded-2xl bg-secondary/30 border-none focus-visible:ring-2 focus-visible:ring-primary/20 text-lg font-medium"
               />
+              <div className="flex items-center gap-2 ml-1">
+                <input 
+                  type="checkbox" 
+                  id="phonePublic" 
+                  checked={isPhoneNumberPublic} 
+                  onChange={(e) => setIsPhoneNumberPublic(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <Label htmlFor="phonePublic" className="text-xs font-medium text-muted-foreground">Visible to others</Label>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="birthDate" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Date of Birth</Label>
+              <Input 
+                id="birthDate"
+                type="date"
+                value={birthDate}
+                onChange={(e) => setBirthDate(e.target.value)}
+                className="h-14 rounded-2xl bg-secondary/30 border-none focus-visible:ring-2 focus-visible:ring-primary/20 text-lg font-medium"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="bio" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Bio / About</Label>
+              <textarea 
+                id="bio"
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                placeholder="Tell us about yourself..."
+                className="w-full min-h-[100px] p-4 rounded-2xl bg-secondary/30 border-none focus-visible:ring-2 focus-visible:ring-primary/20 text-lg font-medium resize-none"
+              />
+              <div className="flex items-center gap-2 ml-1">
+                <input 
+                  type="checkbox" 
+                  id="bioPublic" 
+                  checked={isBioPublic} 
+                  onChange={(e) => setIsBioPublic(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <Label htmlFor="bioPublic" className="text-xs font-medium text-muted-foreground">Visible to others</Label>
+              </div>
             </div>
 
             <div className="space-y-2">
