@@ -2,7 +2,7 @@ import { useUsers, useCurrentUser } from "@/hooks/use-users";
 import { Avatar } from "@/components/Avatar";
 import { Layout } from "@/components/Layout";
 import { Link, useLocation } from "wouter";
-import { Search, Plus, Loader2, Bell, Shield } from "lucide-react";
+import { Search, Plus, Loader2, Bell, Shield, MoreVertical } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -220,13 +220,16 @@ export default function Home() {
     <Layout>
       <div className="p-6 pb-2 space-y-6 max-w-3xl mx-auto">
         <header className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-display font-bold">Messages</h1>
-            <p className="text-muted-foreground font-medium">{filteredUsers?.length || 0} contacts available</p>
-          </div>
           <Link href="/settings">
             <Avatar name={`${currentUser.firstName} ${currentUser.lastName}`} src={currentUser.profileImageUrl} size="md" />
           </Link>
+          <div className="flex flex-col items-center">
+            <h1 className="text-3xl font-display font-bold">Messages</h1>
+            <p className="text-muted-foreground font-medium">{filteredUsers?.length || 0} contacts available</p>
+          </div>
+          <button className="p-2.5 rounded-full hover:bg-muted transition-colors">
+            <MoreVertical className="w-6 h-6" />
+          </button>
         </header>
 
         <div className="relative group">
