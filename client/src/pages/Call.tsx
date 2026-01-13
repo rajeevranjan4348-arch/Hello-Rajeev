@@ -31,6 +31,7 @@ export default function Call() {
   const [isMuted, setIsMuted] = useState(false);
   const [status, setStatus] = useState(isIncoming ? "Incoming Call..." : "Calling...");
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [incomingCallData, setIncomingCallData] = useState<{ from: string, offer: any, type: "video" | "voice" } | null>(null);
   
   const socketRef = useRef<Socket | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -67,9 +68,12 @@ export default function Call() {
       handleEndCall();
     });
 
-    return () => {
-      socketRef.current?.disconnect();
-    };
+    socketRef.current.on("incoming-call", async ({ from, offer, type: incomingType }) => {
+      if (pcRef.current) return;
+      setStatus("Incoming Call...");
+      // Store the offer and type to be used in handleAcceptCall
+      setIncomingCallData({ from, offer, type: incomingType });
+    });
   }, [currentUser]);
 
   useEffect(() => {
