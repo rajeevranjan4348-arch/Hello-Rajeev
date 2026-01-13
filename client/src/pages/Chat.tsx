@@ -3,12 +3,19 @@ import { useUser, useCurrentUser } from "@/hooks/use-users";
 import { Avatar } from "@/components/Avatar";
 import { Layout } from "@/components/Layout";
 import { Link, useRoute } from "wouter";
-import { ArrowLeft, Phone, Video, Send, Paperclip, Loader2, MoreVertical, Pencil, Trash2, Lock as LockIcon, Camera, Image as ImageIcon } from "lucide-react";
+import { ArrowLeft, Phone, Video, Send, Paperclip, Loader2, MoreVertical, Pencil, Trash2, Lock as LockIcon, Camera, Image as ImageIcon, Search, BellOff, Wallpaper, Eraser, UserCircle, FileText, MailCheck, ShieldAlert } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function Chat() {
   const [, params] = useRoute("/chat/:id");
@@ -147,22 +154,53 @@ export default function Chat() {
                 <Video className="w-5 h-5" />
               </button>
             </Link>
-            <button 
-              onClick={() => {
-                const url = prompt("Enter HD Wallpaper URL (e.g. from Unsplash):");
-                if (url !== null) {
-                  setWallpaper(url);
-                  localStorage.setItem(`wallpaper-${userId}`, url);
-                }
-              }}
-              className="p-2.5 rounded-full hover:bg-muted transition-colors"
-              title="Set Chat Wallpaper"
-            >
-              <Paperclip className="w-5 h-5 rotate-45" />
-            </button>
-            <button className="p-2.5 rounded-full hover:bg-muted transition-colors">
-              <MoreVertical className="w-5 h-5" />
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="p-2.5 rounded-full hover:bg-muted transition-colors outline-none">
+                  <MoreVertical className="w-5 h-5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2 shadow-xl border-border bg-background/95 backdrop-blur-md">
+                <DropdownMenuItem className="rounded-xl flex items-center gap-3 py-3 cursor-pointer">
+                  <UserCircle className="w-4 h-4" />
+                  <span className="font-medium">View Profile</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="rounded-xl flex items-center gap-3 py-3 cursor-pointer">
+                  <Search className="w-4 h-4" />
+                  <span className="font-medium">Search Messages</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="rounded-xl flex items-center gap-3 py-3 cursor-pointer">
+                  <BellOff className="w-4 h-4" />
+                  <span className="font-medium">Mute Notifications</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="rounded-xl flex items-center gap-3 py-3 cursor-pointer">
+                  <Wallpaper className="w-4 h-4" />
+                  <span className="font-medium">Wallpaper</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="my-2" />
+                <DropdownMenuItem className="rounded-xl flex items-center gap-3 py-3 cursor-pointer">
+                  <Eraser className="w-4 h-4" />
+                  <span className="font-medium">Clear Chat</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="rounded-xl flex items-center gap-3 py-3 cursor-pointer text-destructive">
+                  <Trash2 className="w-4 h-4" />
+                  <span className="font-medium">Delete Chat</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="rounded-xl flex items-center gap-3 py-3 cursor-pointer text-destructive">
+                  <ShieldAlert className="w-4 h-4" />
+                  <span className="font-medium">Block / Report</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="my-2" />
+                <DropdownMenuItem className="rounded-xl flex items-center gap-3 py-3 cursor-pointer">
+                  <FileText className="w-4 h-4" />
+                  <span className="font-medium">Export Chat</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="rounded-xl flex items-center gap-3 py-3 cursor-pointer">
+                  <MailCheck className="w-4 h-4" />
+                  <span className="font-medium">Mark as Unread</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
