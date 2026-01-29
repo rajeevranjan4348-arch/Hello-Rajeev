@@ -58,6 +58,7 @@ export default function Chat() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editContent, setEditContent] = useState("");
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [wallpaper, setWallpaper] = useState(() => localStorage.getItem(`wallpaper-${userId}`) || "");
   const [showMediaOptions, setShowMediaOptions] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -89,11 +90,14 @@ export default function Chat() {
     sendMessage({
       senderId: currentUser.id,
       receiverId: userId,
-      content: messageContent,
+      content: replyingTo 
+        ? `Replying to: "${replyingTo.content.substring(0, 50)}..."\n\n${messageContent}`
+        : messageContent,
       type: "text",
     }, {
       onSuccess: () => {
         setContent("");
+        setReplyingTo(null);
       }
     });
   };
@@ -289,7 +293,7 @@ export default function Chat() {
               return (
                 <div 
                   key={msg.id} 
-                  className={cn("flex gap-2 max-w-[80%] relative", isMe ? "ml-auto flex-row-reverse" : "")}
+                  className={cn("flex gap-2 max-w-[80%] relative group/msg", isMe ? "ml-auto flex-row-reverse" : "")}
                   onMouseDown={() => isMe && handleTouchStart(msg.id)}
                   onMouseUp={handleTouchEnd}
                   onMouseLeave={handleTouchEnd}
@@ -302,62 +306,22 @@ export default function Chat() {
                     </div>
                   )}
                   
-                  <div className={cn(
-                    "p-3.5 rounded-2xl shadow-sm text-sm relative group transition-all",
-                    isMe 
-                      ? "bg-primary text-primary-foreground rounded-tr-sm" 
-                      : "bg-white dark:bg-zinc-800 text-foreground rounded-tl-sm border border-border/50",
-                    selectedMessageId === msg.id && "ring-4 ring-primary/30 scale-[1.02]"
-                  )}>
-                    {selectedMessageId === msg.id && isMe && (
-                      <div className="absolute -top-12 right-0 flex gap-2 bg-background/95 backdrop-blur-md p-1.5 rounded-xl border shadow-xl z-50 animate-in fade-in zoom-in duration-200">
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingId(msg.id);
-                            setEditContent(msg.content);
-                            setSelectedMessageId(null);
-                          }}
-                          className="p-2 hover:bg-muted rounded-lg flex items-center gap-2 text-foreground"
-                        >
-                          <Pencil className="w-4 h-4 text-primary" />
-                          <span className="text-xs font-bold">Edit</span>
-                        </button>
-                        <div className="w-px h-4 bg-border self-center" />
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(msg.id);
-                            setSelectedMessageId(null);
-                          }}
-                          className="p-2 hover:bg-red-500/10 rounded-lg flex items-center gap-2 text-red-500"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          <span className="text-xs font-bold">Delete</span>
-                        </button>
-                      </div>
+                  <div className="flex flex-col gap-1 items-end">
+                    <div className={cn(
+                      "p-3.5 rounded-2xl shadow-sm text-sm relative group transition-all cursor-pointer hover:translate-x-1 active:translate-x-2",
+                      isMe 
+                        ? "bg-primary text-primary-foreground rounded-tr-sm" 
+                        : "bg-white dark:bg-zinc-800 text-foreground rounded-tl-sm border border-border/50",
+                      selectedMessageId === msg.id && "ring-4 ring-primary/30 scale-[1.02]"
                     )}
-                    {isEditing ? (
-                      <div className="space-y-2 min-w-[200px]">
-                        <input
-                          type="text"
-                          value={editContent}
-                          onChange={(e) => setEditContent(e.target.value)}
-                          className="w-full bg-white/10 p-2 rounded border border-white/20 outline-none"
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleUpdate(msg.id);
-                            if (e.key === 'Escape') setEditingId(null);
-                          }}
-                        />
-                        <div className="flex justify-end gap-2">
-                          <button onClick={() => setEditingId(null)} className="text-[10px] uppercase font-bold opacity-70">Cancel</button>
-                          <button onClick={() => handleUpdate(msg.id)} className="text-[10px] uppercase font-bold">Save</button>
+                    onClick={() => setReplyingTo(msg)}
+                    >
+                      {msg.content.startsWith('Replying to: "') && (
+                        <div className="mb-2 p-2 bg-black/10 rounded-lg border-l-4 border-primary/50 italic text-xs">
+                          {msg.content.split('\n\n')[0]}
                         </div>
-                      </div>
-                    ) : (
-                      <>
-                        <p>{msg.content}</p>
+                      )}
+                      <p>{msg.content.includes('\n\n') ? msg.content.split('\n\n').slice(1).join('\n\n') : msg.content}</p>
                         <div className="flex items-center justify-between gap-4 mt-1">
                           <span className={cn(
                             "text-[10px] opacity-70 flex items-center gap-1",
@@ -407,6 +371,23 @@ export default function Chat() {
         {/* Input Area */}
         {isFollowing && (
           <div className="p-4 bg-background border-t border-border">
+            {replyingTo && (
+              <div className="mb-2 p-3 bg-muted rounded-xl flex items-center justify-between animate-in slide-in-from-bottom-2 duration-200">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-1 h-8 bg-primary rounded-full" />
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black uppercase text-primary">Replying to</span>
+                    <p className="text-xs truncate max-w-[200px] opacity-70">{replyingTo.content}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setReplyingTo(null)}
+                  className="p-1.5 hover:bg-background rounded-full transition-colors"
+                >
+                  <ArrowLeft className="w-4 h-4 rotate-45" />
+                </button>
+              </div>
+            )}
             <div className="flex items-end gap-2 max-w-4xl mx-auto relative">
               <div className="flex flex-col items-center">
                 {showMediaOptions && (
