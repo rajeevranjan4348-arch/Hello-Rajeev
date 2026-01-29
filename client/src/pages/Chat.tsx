@@ -120,6 +120,28 @@ export default function Chat() {
     }
   };
 
+  const handleClearChat = async () => {
+    try {
+      await apiRequest("DELETE", `/api/chat/${userId}/clear`);
+      queryClient.invalidateQueries({ queryKey: ["/api/messages", userId] });
+      toast({ title: "Chat cleared" });
+    } catch (err) {
+      toast({ title: "Failed to clear chat", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteChat = async () => {
+    try {
+      await apiRequest("DELETE", `/api/chat/${userId}`);
+      queryClient.invalidateQueries({ queryKey: ["/api/messages", userId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({ title: "Chat deleted" });
+      window.location.href = "/";
+    } catch (err) {
+      toast({ title: "Failed to delete chat", variant: "destructive" });
+    }
+  };
+
   if (!user || !currentUser) return null;
 
   return (
@@ -173,16 +195,31 @@ export default function Chat() {
                   <BellOff className="w-4 h-4" />
                   <span className="font-medium">Mute Notifications</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem className="rounded-xl flex items-center gap-3 py-3 cursor-pointer">
+                <DropdownMenuItem 
+                  onClick={() => {
+                    const url = prompt("Enter HD Wallpaper URL (e.g. from Unsplash):");
+                    if (url !== null) {
+                      setWallpaper(url);
+                      localStorage.setItem(`wallpaper-${userId}`, url);
+                    }
+                  }}
+                  className="rounded-xl flex items-center gap-3 py-3 cursor-pointer"
+                >
                   <Wallpaper className="w-4 h-4" />
                   <span className="font-medium">Wallpaper</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="my-2" />
-                <DropdownMenuItem className="rounded-xl flex items-center gap-3 py-3 cursor-pointer">
+                <DropdownMenuItem 
+                  onClick={handleClearChat}
+                  className="rounded-xl flex items-center gap-3 py-3 cursor-pointer"
+                >
                   <Eraser className="w-4 h-4" />
                   <span className="font-medium">Clear Chat</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem className="rounded-xl flex items-center gap-3 py-3 cursor-pointer text-destructive">
+                <DropdownMenuItem 
+                  onClick={handleDeleteChat}
+                  className="rounded-xl flex items-center gap-3 py-3 cursor-pointer text-destructive"
+                >
                   <Trash2 className="w-4 h-4" />
                   <span className="font-medium">Delete Chat</span>
                 </DropdownMenuItem>

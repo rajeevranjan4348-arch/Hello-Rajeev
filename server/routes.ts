@@ -91,6 +91,16 @@ export async function registerRoutes(
     res.json(message);
   });
 
+  app.delete("/api/chat/:partnerId/clear", isAuthenticated, async (req: any, res) => {
+    await storage.clearChat(req.user.claims.sub, req.params.partnerId);
+    res.json({ success: true });
+  });
+
+  app.delete("/api/chat/:partnerId", isAuthenticated, async (req: any, res) => {
+    await storage.deleteChat(req.user.claims.sub, req.params.partnerId);
+    res.json({ success: true });
+  });
+
   // === Call Routes ===
 
   app.get(api.calls.list.path, isAuthenticated, async (req: any, res) => {

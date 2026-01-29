@@ -20,6 +20,8 @@ export interface IStorage {
   createMessage(message: InsertMessage): Promise<Message>;
   updateMessage(id: number, content: string): Promise<Message>;
   deleteMessage(id: number): Promise<Message>;
+  clearChat(userId: string, partnerId: string): Promise<void>;
+  deleteChat(userId: string, partnerId: string): Promise<void>;
   
   // Call methods
   createCall(call: InsertCall): Promise<Call>;
@@ -101,6 +103,21 @@ export class DatabaseStorage implements IStorage {
       .where(eq(messages.id, id))
       .returning();
     return deletedMessage;
+  }
+
+  async clearChat(userId: string, partnerId: string): Promise<void> {
+    await db.delete(messages).where(
+      or(
+        and(eq(messages.senderId, userId), eq(messages.receiverId, partnerId)),
+        and(eq(messages.senderId, partnerId), eq(messages.receiverId, userId))
+      )
+    );
+  }
+
+  async deleteChat(userId: string, partnerId: string): Promise<void> {
+    // In this simple implementation, deleteChat is same as clearChat
+    // Real implementation might involve soft-deletes or conversation tracking
+    await this.clearChat(userId, partnerId);
   }
 
   async markMessagesAsRead(senderId: string, receiverId: string): Promise<void> {
