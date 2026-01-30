@@ -322,50 +322,70 @@ export default function Chat() {
                           {msg.content.split('\n\n')[0]}
                         </div>
                       )}
-                      <p>{msg.content.includes('\n\n') ? msg.content.split('\n\n').slice(1).join('\n\n') : msg.content}</p>
-                        <div className="flex items-center justify-between gap-4 mt-1">
-                          <span className={cn(
-                            "text-[10px] opacity-70 flex items-center gap-1",
-                            isMe ? "text-primary-foreground" : "text-muted-foreground"
-                          )}>
-                            {msg.isEdited === "true" && "(edited) "}
-                            {msg.createdAt && format(new Date(msg.createdAt), 'h:mm a')}
-                            {isMe && (
-                              <span className={cn(
-                                "text-[12px]",
-                                msg.readAt ? "text-blue-400" : "text-white/60"
-                              )}>
-                                ⭐
-                              </span>
-                            )}
-                          </span>
-                          {isMe && msg.isDeleted !== "true" && (
-                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setEditingId(msg.id);
-                                  setEditContent(msg.content);
-                                }}
-                                className="hover:scale-110 transition-transform"
-                              >
-                                <Pencil className="w-3 h-3" />
-                              </button>
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDelete(msg.id);
-                                }}
-                                className="hover:scale-110 transition-transform text-red-200"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            </div>
-                          )}
+                      {isEditing ? (
+                        <div className="space-y-2 min-w-[200px]">
+                          <input
+                            type="text"
+                            value={editContent}
+                            onChange={(e) => setEditContent(e.target.value)}
+                            className="w-full bg-white/10 p-2 rounded border border-white/20 outline-none"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleUpdate(msg.id);
+                              if (e.key === 'Escape') setEditingId(null);
+                            }}
+                          />
+                          <div className="flex justify-end gap-2">
+                            <button onClick={() => setEditingId(null)} className="text-[10px] uppercase font-bold opacity-70">Cancel</button>
+                            <button onClick={() => handleUpdate(msg.id)} className="text-[10px] uppercase font-bold">Save</button>
+                          </div>
                         </div>
-                      </>
-                    )}
-                  </div>
+                      ) : (
+                        <>
+                          <p>{msg.content.includes('\n\n') ? msg.content.split('\n\n').slice(1).join('\n\n') : msg.content}</p>
+                          <div className="flex items-center justify-between gap-4 mt-1">
+                            <span className={cn(
+                              "text-[10px] opacity-70 flex items-center gap-1",
+                              isMe ? "text-primary-foreground" : "text-muted-foreground"
+                            )}>
+                              {msg.isEdited === "true" && "(edited) "}
+                              {msg.createdAt && format(new Date(msg.createdAt), 'h:mm a')}
+                              {isMe && (
+                                <span className={cn(
+                                  "text-[12px]",
+                                  msg.readAt ? "text-blue-400" : "text-white/60"
+                                )}>
+                                  ⭐
+                                </span>
+                              )}
+                            </span>
+                            {isMe && msg.isDeleted !== "true" && (
+                              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingId(msg.id);
+                                    setEditContent(msg.content);
+                                  }}
+                                  className="hover:scale-110 transition-transform"
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                </button>
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDelete(msg.id);
+                                  }}
+                                  className="hover:scale-110 transition-transform text-red-200"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
                 </div>
               );
             })
