@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import type { Message } from "@shared/schema";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -341,7 +342,8 @@ export default function Chat() {
                           {isMe && msg.isDeleted !== "true" && (
                             <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button 
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   setEditingId(msg.id);
                                   setEditContent(msg.content);
                                 }}
@@ -350,7 +352,10 @@ export default function Chat() {
                                 <Pencil className="w-3 h-3" />
                               </button>
                               <button 
-                                onClick={() => handleDelete(msg.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDelete(msg.id);
+                                }}
                                 className="hover:scale-110 transition-transform text-red-200"
                               >
                                 <Trash2 className="w-3 h-3" />
