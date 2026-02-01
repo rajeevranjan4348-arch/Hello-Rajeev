@@ -3,7 +3,7 @@ import { useUser, useCurrentUser } from "@/hooks/use-users";
 import { Avatar } from "@/components/Avatar";
 import { Layout } from "@/components/Layout";
 import { Link, useRoute } from "wouter";
-import { ArrowLeft, Phone, Video, Send, Paperclip, Loader2, MoreVertical, Pencil, Trash2, Lock as LockIcon, Camera, Image as ImageIcon, Search, BellOff, Wallpaper, Eraser, UserCircle, FileText, MailCheck, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Phone, Video, Send, Paperclip, Loader2, MoreVertical, Pencil, Trash2, Lock as LockIcon, Camera, Image as ImageIcon, Search, BellOff, Wallpaper, Eraser, UserCircle, FileText, MailCheck, ShieldAlert, Reply } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -56,6 +56,7 @@ export default function Chat() {
       toast({ title: "Follow failed", variant: "destructive" });
     }
   };
+
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editContent, setEditContent] = useState("");
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
@@ -65,15 +66,43 @@ export default function Chat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
-  const handleTouchStart = (msgId: number) => {
+  // Swipe logic
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [swipeOffset, setSwipeOffset] = useState<{ [key: number]: number }>({});
+
+  const handleTouchStart = (msgId: number, e: React.TouchEvent | React.MouseEvent) => {
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    setTouchStartX(clientX);
+
     longPressTimer.current = setTimeout(() => {
       setSelectedMessageId(msgId);
       if (window.navigator.vibrate) window.navigator.vibrate(50);
     }, 500);
   };
 
-  const handleTouchEnd = () => {
+  const handleTouchMove = (msgId: number, e: React.TouchEvent) => {
+    if (touchStartX === null) return;
+    const currentX = e.touches[0].clientX;
+    const diff = currentX - touchStartX;
+    
+    // Only allow right swipe for reply
+    if (diff > 0) {
+      const offset = Math.min(diff, 80);
+      setSwipeOffset({ [msgId]: offset });
+      if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    }
+  };
+
+  const handleTouchEnd = (msg: Message) => {
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    
+    if (swipeOffset[msg.id] >= 60) {
+      setReplyingTo(msg);
+      if (window.navigator.vibrate) window.navigator.vibrate(30);
+    }
+    
+    setSwipeOffset({});
+    setTouchStartX(null);
   };
 
   const scrollToBottom = () => {
@@ -152,7 +181,6 @@ export default function Chat() {
   return (
     <Layout showNav={false}>
       <div className="flex flex-col h-screen bg-background">
-        {/* Header */}
         <header className="px-4 py-3 flex items-center justify-between border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-20">
           <div className="flex items-center gap-3">
             <Link href="/">
@@ -246,7 +274,6 @@ export default function Chat() {
           </div>
         </header>
 
-        {/* Messages */}
         <div 
           className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-hide bg-slate-50/50 dark:bg-black/20"
           style={wallpaper ? {
@@ -290,16 +317,18 @@ export default function Chat() {
               const isMe = msg.senderId === currentUser.id;
               const showAvatar = !isMe && (idx === 0 || messages[idx - 1].senderId !== msg.senderId);
               const isEditing = editingId === msg.id;
+              const currentOffset = swipeOffset[msg.id] || 0;
               
               return (
                 <div 
                   key={msg.id} 
                   className={cn("flex gap-2 max-w-[80%] relative group/msg", isMe ? "ml-auto flex-row-reverse" : "")}
-                  onMouseDown={() => isMe && handleTouchStart(msg.id)}
-                  onMouseUp={handleTouchEnd}
-                  onMouseLeave={handleTouchEnd}
-                  onTouchStart={() => isMe && handleTouchStart(msg.id)}
-                  onTouchEnd={handleTouchEnd}
+                  onMouseDown={(e) => handleTouchStart(msg.id, e)}
+                  onMouseUp={() => handleTouchEnd(msg)}
+                  onMouseLeave={() => handleTouchEnd(msg)}
+                  onTouchStart={(e) => handleTouchStart(msg.id, e)}
+                  onTouchMove={(e) => handleTouchMove(msg.id, e)}
+                  onTouchEnd={() => handleTouchEnd(msg)}
                 >
                   {!isMe && (
                     <div className="w-8 flex-shrink-0">
@@ -307,15 +336,22 @@ export default function Chat() {
                     </div>
                   )}
                   
-                  <div className="flex flex-col gap-1 items-end">
-                    <div className={cn(
-                      "p-3.5 rounded-2xl shadow-sm text-sm relative group transition-all cursor-pointer hover:translate-x-1 active:translate-x-2",
-                      isMe 
-                        ? "bg-primary text-primary-foreground rounded-tr-sm" 
-                        : "bg-white dark:bg-zinc-800 text-foreground rounded-tl-sm border border-border/50",
-                      selectedMessageId === msg.id && "ring-4 ring-primary/30 scale-[1.02]"
+                  <div className="relative flex items-center">
+                    {currentOffset > 20 && (
+                      <div className="absolute -left-10 text-primary animate-in fade-in zoom-in duration-200">
+                        <Reply className="w-5 h-5" />
+                      </div>
                     )}
-                    onClick={() => setReplyingTo(msg)}
+                    <div 
+                      className={cn(
+                        "p-3.5 rounded-2xl shadow-sm text-sm relative group transition-all cursor-pointer",
+                        isMe 
+                          ? "bg-primary text-primary-foreground rounded-tr-sm" 
+                          : "bg-white dark:bg-zinc-800 text-foreground rounded-tl-sm border border-border/50",
+                        selectedMessageId === msg.id && "ring-4 ring-primary/30 scale-[1.02]"
+                      )}
+                      style={{ transform: `translateX(${currentOffset}px)` }}
+                      onClick={() => setReplyingTo(msg)}
                     >
                       {msg.content.startsWith('Replying to: "') && (
                         <div className="mb-2 p-2 bg-black/10 rounded-lg border-l-4 border-primary/50 italic text-xs">
@@ -386,6 +422,7 @@ export default function Chat() {
                         </>
                       )}
                     </div>
+                  </div>
                 </div>
               );
             })
@@ -393,7 +430,6 @@ export default function Chat() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Area */}
         {isFollowing && (
           <div className="p-4 bg-background border-t border-border">
             {replyingTo && (
