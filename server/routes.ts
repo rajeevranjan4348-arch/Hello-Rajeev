@@ -137,5 +137,34 @@ export async function registerRoutes(
     res.json({ success: true });
   });
 
+  // === OTP Routes ===
+
+  app.post("/api/otp/send", async (req, res) => {
+    const { phoneNumber } = req.body;
+    if (!phoneNumber) return res.status(400).json({ message: "Phone number required" });
+    
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    await storage.createOTP(phoneNumber, code);
+    
+    // In a real app, send SMS here. For now, log it.
+    console.log(`OTP for ${phoneNumber}: ${code}`);
+    
+    res.json({ success: true, message: "OTP sent successfully (Demo)" });
+  });
+
+  app.post("/api/otp/verify", async (req, res) => {
+    const { phoneNumber, code } = req.body;
+    const isValid = await storage.verifyOTP(phoneNumber, code);
+    
+    if (isValid) {
+      // In a real app, create a session here. 
+      // For now, we use Replit Auth for session management.
+      // This endpoint confirms the OTP is valid.
+      res.json({ success: true });
+    } else {
+      res.status(400).json({ message: "Invalid or expired OTP" });
+    }
+  });
+
   return httpServer;
 }

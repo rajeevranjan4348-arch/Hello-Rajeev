@@ -1,7 +1,7 @@
 import { db } from "./db";
 import { eq, or, and, desc, ne, like, gt, isNull } from "drizzle-orm";
 import {
-  users, messages, calls, contacts,
+  users, messages, calls, contacts, otps,
   type User,
   type Message, type InsertMessage,
   type Call, type InsertCall
@@ -26,6 +26,10 @@ export interface IStorage {
   // Call methods
   createCall(call: InsertCall): Promise<Call>;
   getCalls(userId: string): Promise<Call[]>;
+
+  // OTP methods
+  createOTP(phoneNumber: string, code: string): Promise<void>;
+  verifyOTP(phoneNumber: string, code: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -141,6 +145,37 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(calls).where(
       or(eq(calls.callerId, userId), eq(calls.calleeId, userId))
     ).orderBy(desc(calls.startedAt));
+  }
+
+  async createOTP(phoneNumber: string, code: string): Promise<void> {
+    const expiresAt = new Date(Date.now() + 2 * 60 * 1000); // 2 minutes
+    await db.insert(otps).values({
+      phoneNumber,
+      code,
+      expiresAt,
+    });
+  }
+
+  async verifyOTP(phoneNumber: string, code: string): Promise<boolean> {
+    const [otp] = await db.select()
+      .from(otps)
+      .where(
+        and(
+          eq(otps.phoneNumber, phoneNumber),
+          eq(otps.code, code),
+          eq(otps.isUsed, "false"),
+          gt(otps.expiresAt, new Date())
+        )
+      )
+      .limit(1);
+
+    if (otp) {
+      await db.update(otps)
+        .set({ isUsed: "true" })
+        .where(eq(otps.id, otp.id));
+      return true;
+    }
+    return false;
   }
 
   async isFollowing(userId: string, contactId: string): Promise<boolean> {

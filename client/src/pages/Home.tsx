@@ -37,17 +37,22 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [timer]);
 
-  const handleSendOtp = () => {
+  const handleSendOtp = async () => {
     if (phoneNumber.length < 10) {
       toast({ title: "Invalid Number", description: "Please enter a valid phone number", variant: "destructive" });
       return;
     }
-    setShowOtpScreen(true);
-    setTimer(30);
-    toast({ title: "OTP Sent", description: "A 6-digit code has been sent to your number (Demo)" });
+    try {
+      await apiRequest("POST", "/api/otp/send", { phoneNumber: `+91${phoneNumber}` });
+      setShowOtpScreen(true);
+      setTimer(120); // 2 minutes
+      toast({ title: "OTP Sent", description: "Check server logs for code (Demo)" });
+    } catch (err) {
+      toast({ title: "Failed to send OTP", variant: "destructive" });
+    }
   };
 
-  const handleOtpChange = (index: number, value: string) => {
+  const handleOtpChange = async (index: number, value: string) => {
     if (isNaN(Number(value))) return;
     const newOtp = [...otp];
     newOtp[index] = value.slice(-1);
@@ -58,17 +63,28 @@ export default function Home() {
     }
 
     if (newOtp.every(digit => digit !== "")) {
-      // Mock verification
-      toast({ title: "Logging in...", description: "Verifying your code" });
-      setTimeout(() => {
-        window.location.href = "/api/login"; // Redirect to real auth for now
-      }, 1500);
+      const code = newOtp.join("");
+      try {
+        await apiRequest("POST", "/api/otp/verify", { 
+          phoneNumber: `+91${phoneNumber}`, 
+          code 
+        });
+        toast({ title: "Success", description: "OTP Verified!" });
+        // Redirect to real login to establish session
+        window.location.href = "/api/login";
+      } catch (err) {
+        toast({ title: "Verification Failed", description: "Invalid or expired code", variant: "destructive" });
+        setOtp(["", "", "", "", "", ""]);
+        const firstInput = otpInputs.current[0];
+        if (firstInput) firstInput.focus();
+      }
     }
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
     if (e.key === "Backspace" && !otp[index] && index > 0) {
-      otpInputs.current[index - 1]?.focus();
+      const prevInput = otpInputs.current[index - 1];
+      if (prevInput) prevInput.focus();
     }
   };
 
@@ -187,7 +203,10 @@ export default function Home() {
                   type="tel" 
                   placeholder="Phone Number" 
                   value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    setPhoneNumber(val);
+                  }}
                   className="w-full pl-12 pr-4 py-4 rounded-2xl bg-secondary/50 border border-transparent focus:bg-background focus:border-primary/20 focus:ring-4 focus:ring-primary/10 transition-all outline-none font-medium placeholder:text-muted-foreground/70"
                 />
               </div>
