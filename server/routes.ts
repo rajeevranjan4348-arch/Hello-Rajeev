@@ -166,5 +166,12 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/messages/recent", isAuthenticated, async (req: any, res) => {
+    const currentUserId = req.user.claims.sub;
+    // Get last 10 messages for the user as receiver
+    const msgs = await storage.getRecentMessages(currentUserId);
+    res.json(msgs);
+  });
+
   return httpServer;
 }

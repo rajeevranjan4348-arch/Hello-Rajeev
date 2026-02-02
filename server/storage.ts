@@ -30,6 +30,8 @@ export interface IStorage {
   // OTP methods
   createOTP(phoneNumber: string, code: string): Promise<void>;
   verifyOTP(phoneNumber: string, code: string): Promise<boolean>;
+
+  getRecentMessages(userId: string): Promise<Message[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -176,6 +178,14 @@ export class DatabaseStorage implements IStorage {
       return true;
     }
     return false;
+  }
+
+  async getRecentMessages(userId: string): Promise<Message[]> {
+    return await db.select()
+      .from(messages)
+      .where(eq(messages.receiverId, userId))
+      .orderBy(desc(messages.createdAt))
+      .limit(10);
   }
 
   async isFollowing(userId: string, contactId: string): Promise<boolean> {
