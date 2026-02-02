@@ -4,7 +4,7 @@ import { Layout } from "@/components/Layout";
 import { Avatar } from "@/components/Avatar";
 import { Bell, Moon, Lock, HelpCircle, LogOut, ChevronRight, User, Pencil, Shield, Settings as SettingsIcon, Monitor, Star, UserCircle } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
