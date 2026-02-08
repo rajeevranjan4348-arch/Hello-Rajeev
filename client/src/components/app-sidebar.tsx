@@ -10,7 +10,6 @@ export function AppSidebar() {
     { title: "Calls", url: "/calls", icon: Phone },
     { title: "People", url: "/people", icon: Users },
     { title: "Settings", url: "/settings", icon: Settings },
-    { title: "Work", url: "/work", icon: Briefcase },
   ]
 
   return (

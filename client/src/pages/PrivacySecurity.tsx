@@ -1,5 +1,5 @@
 import { Layout } from "@/components/Layout";
-import { ArrowLeft, Shield, Lock, Eye, Ban, BellRing } from "lucide-react";
+import { ArrowLeft, Shield, Lock, Eye, Ban, BellRing, Smartphone, Image, FileText, Camera, Share2, MapPin, Mic, Music, HardDrive, Bell } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -12,10 +12,28 @@ export default function PrivacySecurity() {
     twoStep: false
   });
 
+  const [permissions, setPermissions] = useState([
+    { id: 'nearby', label: 'Nearby devices', icon: HardDrive, allowed: true },
+    { id: 'notifications', label: 'Notifications', icon: Bell, allowed: true },
+    { id: 'phone', label: 'Phone', icon: Smartphone, allowed: true, subtitle: 'Accessed in past 24 hours' },
+    { id: 'photos', label: 'Photos and videos', icon: Image, allowed: true, subtitle: 'Accessed in past 24 hours' },
+    { id: 'sms', label: 'SMS', icon: FileText, allowed: true },
+    { id: 'call_logs', label: 'Call logs', icon: HardDrive, allowed: true, subtitle: 'Accessed in past 24 hours' },
+    { id: 'camera', label: 'Camera', icon: Camera, allowed: true, subtitle: 'Last accessed yesterday at 8:33 PM' },
+    { id: 'contacts', label: 'Contacts', icon: Share2, allowed: true, subtitle: 'Accessed in past 24 hours' },
+    { id: 'location', label: 'Location', icon: MapPin, allowed: true, subtitle: 'Last accessed yesterday at 3:46 PM' },
+    { id: 'microphone', label: 'Microphone', icon: Mic, allowed: true, subtitle: 'Last accessed yesterday at 11:39 AM' },
+    { id: 'music', label: 'Music and audio', icon: Music, allowed: true, subtitle: 'Accessed in past 24 hours' },
+  ]);
+
   const toggleSetting = (key: keyof typeof settings) => {
     if (typeof settings[key] === 'boolean') {
       setSettings(prev => ({ ...prev, [key]: !prev[key] }));
     }
+  };
+
+  const togglePermission = (id: string) => {
+    setPermissions(prev => prev.map(p => p.id === id ? { ...p, allowed: !p.allowed } : p));
   };
 
   const sections = [
@@ -47,6 +65,17 @@ export default function PrivacySecurity() {
       ]
     },
     {
+      title: "App Permissions",
+      items: permissions.map(p => ({
+        icon: p.icon,
+        label: p.label,
+        value: p.subtitle || (p.allowed ? "Allowed" : "Not allowed"),
+        onClick: () => togglePermission(p.id),
+        toggle: true,
+        active: p.allowed
+      }))
+    },
+    {
       title: "Security",
       items: [
         { 
@@ -69,14 +98,14 @@ export default function PrivacySecurity() {
 
   return (
     <Layout showNav={false}>
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background pb-20">
         <header className="px-4 py-4 flex items-center gap-4 border-b bg-background/80 backdrop-blur-md sticky top-0 z-20">
           <Link href="/settings">
             <button className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors">
               <ArrowLeft className="w-6 h-6" />
             </button>
           </Link>
-          <h1 className="text-xl font-display font-bold">Privacy & Security</h1>
+          <h1 className="text-xl font-display font-bold">Privacy & Permissions</h1>
         </header>
 
         <main className="p-6 max-w-2xl mx-auto space-y-8">
@@ -128,6 +157,18 @@ export default function PrivacySecurity() {
                 </div>
               </div>
             ))}
+            
+            <div className="bg-muted/30 p-6 rounded-[2rem] space-y-4">
+              <h3 className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-4">Unused app settings</h3>
+              <div className="flex items-center justify-between p-5 bg-card/50 rounded-2xl border border-border/20">
+                <div className="text-left">
+                  <span className="font-bold block">Pause app activity if unused</span>
+                </div>
+                <div className="w-12 h-6 rounded-full bg-primary p-1">
+                  <div className="w-4 h-4 rounded-full bg-white translate-x-6 shadow-sm" />
+                </div>
+              </div>
+            </div>
           </div>
         </main>
       </div>

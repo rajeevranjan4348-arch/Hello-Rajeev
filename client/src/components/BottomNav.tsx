@@ -8,7 +8,6 @@ export function BottomNav() {
   const navItems = [
     { icon: MessageSquare, label: "Chats", path: "/" },
     { icon: Phone, label: "Calls", path: "/calls" },
-    { icon: Briefcase, label: "Work", path: "/work" },
     { icon: Users, label: "People", path: "/people" },
     { icon: Settings, label: "Settings", path: "/settings" },
   ];
