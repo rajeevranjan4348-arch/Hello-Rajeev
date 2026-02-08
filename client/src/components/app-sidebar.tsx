@@ -2,6 +2,8 @@ import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu
 import { Briefcase, MessageSquare, Phone, Users, Settings, Plus } from "lucide-react"
 import { Link, useLocation } from "wouter"
 
+import logoImg from "@/assets/logo.png";
+
 export function AppSidebar() {
   const [location] = useLocation();
 
@@ -16,10 +18,10 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="p-4 border-b">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
-            <MessageSquare className="w-5 h-5" />
+          <div className="w-8 h-8 rounded-lg overflow-hidden">
+            <img src={logoImg} alt="Zenix Logo" className="w-full h-full object-cover" />
           </div>
-          <span className="font-display font-bold text-xl">SwiftChat</span>
+          <span className="font-display font-bold text-xl">Zenix</span>
         </div>
       </SidebarHeader>
       <SidebarContent>

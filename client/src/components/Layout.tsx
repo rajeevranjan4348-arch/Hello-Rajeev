@@ -3,6 +3,8 @@ import { ReactNode } from "react";
 import { useCurrentUser } from "@/hooks/use-users";
 import { Loader2 } from "lucide-react";
 
+import logoImg from "@/assets/logo.png";
+
 interface LayoutProps {
   children: ReactNode;
   showNav?: boolean;
@@ -14,8 +16,9 @@ export function Layout({ children, showNav = true }: LayoutProps) {
   if (isLoading) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-background text-primary">
+        <img src={logoImg} alt="Zenix Logo" className="w-16 h-16 rounded-2xl animate-pulse mb-4" />
         <Loader2 className="w-10 h-10 animate-spin" />
-        <p className="mt-4 font-medium text-muted-foreground animate-pulse">Loading SwiftChat...</p>
+        <p className="mt-4 font-medium text-muted-foreground animate-pulse">Loading Zenix...</p>
       </div>
     );
   }

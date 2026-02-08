@@ -17,7 +17,7 @@ import LinkedDevices from "@/pages/LinkedDevices";
 import StarredMessages from "@/pages/StarredMessages";
 import PrivacyPolicy from "@/pages/legal/PrivacyPolicy";
 import TermsOfService from "@/pages/legal/TermsOfService";
-import { Briefcase } from "lucide-react";
+import logoImg from "@/assets/logo.png";
 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -60,7 +60,10 @@ function App() {
             <div className="flex-1 flex flex-col min-w-0">
               <header className="md:hidden flex items-center p-4 border-b bg-background/80 backdrop-blur-md sticky top-0 z-10">
                 <SidebarTrigger />
-                <span className="ml-4 font-display font-bold text-xl">SwiftChat</span>
+                <div className="ml-4 flex items-center gap-2">
+                  <img src={logoImg} alt="Zenix Logo" className="w-8 h-8 rounded-lg" />
+                  <span className="font-display font-bold text-xl">Zenix</span>
+                </div>
               </header>
               <main className="flex-1 overflow-auto relative">
                 <Router />
