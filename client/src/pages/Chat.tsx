@@ -25,8 +25,12 @@ import {
   MailCheck,
   ShieldAlert,
   Reply,
+  Mic,
+  Square,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import RecordRTC from "recordrtc";
+// @ts-ignore
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -95,6 +99,49 @@ export default function Chat() {
   // Swipe logic
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [swipeOffset, setSwipeOffset] = useState<{ [key: number]: number }>({});
+
+  // Voice recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const recorderRef = useRef<RecordRTC | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const recorder = new RecordRTC(stream, { type: "audio" });
+      recorder.startRecording();
+      recorderRef.current = recorder;
+      setIsRecording(true);
+    } catch (err) {
+      toast({ title: "Microphone Access Denied", variant: "destructive" });
+    }
+  };
+
+  const stopRecording = () => {
+    if (!recorderRef.current) return;
+    recorderRef.current.stopRecording(async () => {
+      const blob = recorderRef.current!.getBlob();
+      const reader = new FileReader();
+      reader.readAsDataURL(blob);
+      reader.onloadend = () => {
+        const base64Audio = reader.result as string;
+        sendMessage(
+          {
+            senderId: currentUser!.id,
+            receiverId: userId,
+            content: base64Audio,
+            type: "voice",
+          },
+          {
+            onSuccess: () => toast({ title: "Voice message sent" }),
+          },
+        );
+      };
+      setIsRecording(false);
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+    });
+  };
 
   const handleTouchStart = (
     msgId: number,
@@ -453,11 +500,20 @@ export default function Chat() {
                         </div>
                       ) : (
                         <>
-                          <p>
-                            {msg.content.includes("\n\n")
-                              ? msg.content.split("\n\n").slice(1).join("\n\n")
-                              : msg.content}
-                          </p>
+                          {msg.type === "voice" ? (
+                            <div className="flex items-center gap-3 py-1">
+                              <div className="p-2 bg-white/20 rounded-full">
+                                <Mic className="w-4 h-4" />
+                              </div>
+                              <audio src={msg.content} controls className="h-8 w-40" />
+                            </div>
+                          ) : (
+                            <p>
+                              {msg.content.includes("\n\n")
+                                ? msg.content.split("\n\n").slice(1).join("\n\n")
+                                : msg.content}
+                            </p>
+                          )}
                           <div className="flex items-center justify-between gap-4 mt-1">
                             <span
                               className={cn(
@@ -593,21 +649,38 @@ export default function Chat() {
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                  placeholder="Type a message..."
+                  placeholder={isRecording ? "Recording voice..." : "Type a message..."}
+                  disabled={isRecording}
                   className="flex-1 bg-transparent px-3 py-2 outline-none min-h-[44px]"
                 />
               </div>
-              <button
-                onClick={handleSend}
-                disabled={!content.trim() || isSending}
-                className="p-3 bg-primary text-primary-foreground rounded-xl shadow-lg shadow-primary/25 hover:shadow-xl hover:scale-105 active:scale-95 disabled:opacity-50 disabled:shadow-none disabled:transform-none transition-all duration-200"
-              >
-                {isSending ? (
-                  <Loader2 className="w-6 h-6 animate-spin" />
-                ) : (
-                  <Send className="w-6 h-6" />
-                )}
-              </button>
+              {content.trim() || isRecording ? (
+                <button
+                  onClick={isRecording ? stopRecording : handleSend}
+                  disabled={isSending}
+                  className={cn(
+                    "p-3 rounded-xl shadow-lg transition-all duration-200",
+                    isRecording
+                      ? "bg-red-500 text-white animate-pulse"
+                      : "bg-primary text-primary-foreground shadow-primary/25 hover:shadow-xl hover:scale-105 active:scale-95",
+                  )}
+                >
+                  {isSending ? (
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  ) : isRecording ? (
+                    <Square className="w-6 h-6" />
+                  ) : (
+                    <Send className="w-6 h-6" />
+                  )}
+                </button>
+              ) : (
+                <button
+                  onClick={startRecording}
+                  className="p-3 bg-secondary text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl transition-all"
+                >
+                  <Mic className="w-6 h-6" />
+                </button>
+              )}
             </div>
           </div>
         )}
