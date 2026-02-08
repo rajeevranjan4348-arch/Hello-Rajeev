@@ -1,8 +1,8 @@
-# SwiftChat - Real-time Messaging Application
+# Zenix - Real-time Messaging Application
 
 ## Overview
 
-SwiftChat is a modern real-time messaging application built with a React frontend and Express backend. The application provides instant messaging, voice/video call tracking, user discovery, and contact management features. It follows a mobile-first design approach inspired by WhatsApp, Telegram, and Signal, with phone-based user discovery as a key feature.
+Zenix is a modern real-time messaging application built with a React frontend and Express backend. The application provides instant messaging, voice/video call tracking, user discovery, and contact management features. It follows a mobile-first design approach inspired by WhatsApp, Telegram, and Signal, with phone-based user discovery as a key feature.
 
 ## User Preferences
 
