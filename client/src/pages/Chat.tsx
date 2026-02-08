@@ -636,12 +636,24 @@ export default function Chat() {
               <div className="flex flex-col items-center">
                 {showMediaOptions && (
                   <div className="absolute bottom-16 left-0 bg-background/95 backdrop-blur-md p-2 rounded-2xl border shadow-2xl z-50 animate-in slide-in-from-bottom-2 duration-200 flex flex-col gap-2">
+                    <input
+                      type="file"
+                      ref={videoInputRef}
+                      className="hidden"
+                      accept="video/*"
+                      capture="environment"
+                      onChange={(e) => handleFileUpload(e, "video")}
+                    />
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      accept="image/*"
+                      onChange={(e) => handleFileUpload(e, "image")}
+                    />
                     <button
                       onClick={() => {
-                        toast({
-                          title: "Camera Opening...",
-                          description: "Requesting permissions",
-                        });
+                        videoInputRef.current?.click();
                         setShowMediaOptions(false);
                       }}
                       className="p-3 hover:bg-primary/10 rounded-xl flex items-center gap-3 text-foreground transition-colors"
@@ -653,10 +665,7 @@ export default function Chat() {
                     </button>
                     <button
                       onClick={() => {
-                        toast({
-                          title: "Gallery Opening...",
-                          description: "Accessing your photos",
-                        });
+                        fileInputRef.current?.click();
                         setShowMediaOptions(false);
                       }}
                       className="p-3 hover:bg-primary/10 rounded-xl flex items-center gap-3 text-foreground transition-colors"
