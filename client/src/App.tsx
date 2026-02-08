@@ -13,6 +13,8 @@ import People from "@/pages/People";
 import Settings from "@/pages/Settings";
 import PersonalInfo from "@/pages/PersonalInfo";
 import PrivacySecurity from "@/pages/PrivacySecurity";
+import LinkedDevices from "@/pages/LinkedDevices";
+import StarredMessages from "@/pages/StarredMessages";
 import PrivacyPolicy from "@/pages/legal/PrivacyPolicy";
 import TermsOfService from "@/pages/legal/TermsOfService";
 import { Briefcase } from "lucide-react";
@@ -31,6 +33,8 @@ function Router() {
       <Route path="/settings" component={Settings} />
       <Route path="/settings/personal" component={PersonalInfo} />
       <Route path="/settings/privacy" component={PrivacySecurity} />
+      <Route path="/devices" component={LinkedDevices} />
+      <Route path="/starred" component={StarredMessages} />
       <Route path="/privacy" component={PrivacyPolicy} />
       <Route path="/terms" component={TermsOfService} />
       <Route path="/work">

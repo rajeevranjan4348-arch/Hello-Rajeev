@@ -68,8 +68,8 @@ export default function Settings() {
     {
       title: "Account",
       items: [
-        { icon: UserCircle, label: "Edit Profile", onClick: () => setLocation("/personal-info") },
-        { icon: Shield, label: "Privacy Settings", onClick: () => setLocation("/privacy") },
+        { icon: UserCircle, label: "Edit Profile", onClick: () => setLocation("/settings/personal") },
+        { icon: Shield, label: "Privacy Settings", onClick: () => setLocation("/settings/privacy") },
         { icon: User, label: "Account Settings", onClick: () => setLocation("/account") },
       ]
     },
@@ -92,7 +92,7 @@ export default function Settings() {
       title: "Support",
       items: [
         { icon: HelpCircle, label: "Help & Support", onClick: () => setLocation("/help") },
-        { icon: Lock, label: "Privacy Policy", onClick: () => setLocation("/privacy-policy") },
+        { icon: Lock, label: "Privacy Policy", onClick: () => setLocation("/privacy") },
       ]
     }
   ];
@@ -104,7 +104,7 @@ export default function Settings() {
           <h1 className="text-3xl font-display font-bold">Settings</h1>
         </header>
 
-        <Link href="/personal-info">
+        <Link href="/settings/personal">
           <div className="p-8 rounded-[2.5rem] bg-gradient-to-br from-primary via-primary to-blue-600 text-white shadow-2xl shadow-primary/20 relative overflow-hidden group cursor-pointer transition-all hover:scale-[1.01]">
             <div className="absolute -top-24 -right-24 w-64 h-64 bg-white/10 rounded-full blur-3xl group-hover:scale-125 transition-transform duration-700" />
             <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-black/10 rounded-full blur-3xl group-hover:scale-125 transition-transform duration-700" />
