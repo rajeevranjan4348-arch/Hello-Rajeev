@@ -104,6 +104,33 @@ export default function Chat() {
   const [isRecording, setIsRecording] = useState(false);
   const recorderRef = useRef<RecordRTC | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: "image" | "video") => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onloadend = () => {
+      const base64Data = reader.result as string;
+      sendMessage(
+        {
+          senderId: currentUser!.id,
+          receiverId: userId,
+          content: base64Data,
+          type: type,
+        },
+        {
+          onSuccess: () => {
+            toast({ title: `${type.charAt(0).toUpperCase() + type.slice(1)} sent` });
+            setShowMediaOptions(false);
+          },
+        },
+      );
+    };
+  };
 
   const startRecording = async () => {
     try {
@@ -506,6 +533,14 @@ export default function Chat() {
                                 <Mic className="w-4 h-4" />
                               </div>
                               <audio src={msg.content} controls className="h-8 w-40" />
+                            </div>
+                          ) : msg.type === "image" ? (
+                            <div className="rounded-lg overflow-hidden border border-border/50 bg-muted/20">
+                              <img src={msg.content} alt="Sent photo" className="max-w-full max-h-64 object-contain" />
+                            </div>
+                          ) : msg.type === "video" ? (
+                            <div className="rounded-lg overflow-hidden border border-border/50 bg-muted/20">
+                              <video src={msg.content} controls className="max-w-full max-h-64" />
                             </div>
                           ) : (
                             <p>
