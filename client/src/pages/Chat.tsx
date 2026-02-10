@@ -289,8 +289,8 @@ export default function Chat() {
   return (
     <Layout showNav={false}>
       <div className="flex flex-col h-screen bg-background">
-        <header className="px-4 py-3 flex items-center justify-between border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-20">
-          <div className="flex items-center gap-3">
+        <header className="px-4 py-3 flex items-center justify-between border-b border-border bg-background/95 backdrop-blur-md sticky top-0 z-[100] w-full h-16">
+          <div className="flex items-center gap-3 overflow-visible">
             <Link href="/">
               <button className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors">
                 <ArrowLeft className="w-6 h-6 text-foreground" />
@@ -303,11 +303,11 @@ export default function Chat() {
                 size="sm"
                 isOnline={user.isOnline || false}
               />
-              <div>
-                <h3 className="font-bold text-sm leading-none">
+              <div className="flex flex-col min-w-0">
+                <h3 className="font-bold text-sm leading-tight truncate max-w-[150px] sm:max-w-[200px]">
                   {user.firstName} {user.lastName}
                 </h3>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-[10px] text-muted-foreground leading-none">
                   {user.isOnline ? "Online" : "Offline"}
                 </span>
               </div>
