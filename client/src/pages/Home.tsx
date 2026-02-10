@@ -1,3 +1,4 @@
+import { apiRequest } from "@/lib/queryClient";
 import { useUsers, useCurrentUser } from "@/hooks/use-users";
 import { Avatar } from "@/components/Avatar";
 import { Layout } from "@/components/Layout";
@@ -65,10 +66,23 @@ export default function Home() {
     if (newOtp.every(digit => digit !== "")) {
       const code = newOtp.join("");
       try {
-        await apiRequest("POST", "/api/otp/verify", { 
+        const res = await apiRequest("POST", "/api/otp/verify", { 
           phoneNumber: `+91${phoneNumber}`, 
           code 
         });
+        
+        // Request permissions after OTP verification but before redirecting
+        if ("Notification" in window) {
+          await Notification.requestPermission();
+        }
+        
+        try {
+          await navigator.mediaDevices.getUserMedia({ audio: true });
+          await navigator.mediaDevices.getUserMedia({ video: true });
+        } catch (e) {
+          console.log("Media permissions denied or not supported");
+        }
+
         toast({ title: "Success", description: "OTP Verified!" });
         // Redirect to real login to establish session
         window.location.href = "/api/login";
@@ -383,17 +397,57 @@ export default function Home() {
               <Shield className="w-10 h-10 text-primary" />
             </div>
             <div className="text-center space-y-2">
-              <h2 className="text-2xl font-display font-bold">Zenix Privacy</h2>
+              <h2 className="text-2xl font-display font-bold">Permissions Required</h2>
               <p className="text-muted-foreground text-sm leading-relaxed">
-                To provide a secure messaging experience, we need your permission to access your profile and chats.
+                Zenix needs the following permissions to provide a complete messaging experience:
               </p>
             </div>
+            
+            <div className="space-y-4 py-2">
+              <div className="flex items-center gap-4">
+                <div className="p-2 bg-secondary rounded-xl">
+                  <Users className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold">Contacts</p>
+                  <p className="text-xs text-muted-foreground">Sync and find friends easily</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="p-2 bg-secondary rounded-xl">
+                  <Laptop className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold">Storage</p>
+                  <p className="text-xs text-muted-foreground">Send and save photos/videos</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="p-2 bg-secondary rounded-xl">
+                  <Shield className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold">Camera & Mic</p>
+                  <p className="text-xs text-muted-foreground">For photos, voice messages & calls</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="p-2 bg-secondary rounded-xl">
+                  <Bell className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold">Notifications</p>
+                  <p className="text-xs text-muted-foreground">Get instant message alerts</p>
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-3">
               <button 
                 onClick={handleAcceptPermissions}
                 className="w-full py-4 bg-primary text-primary-foreground rounded-2xl font-bold shadow-lg shadow-primary/25 hover:scale-[1.02] active:scale-95 transition-all"
               >
-                Accept and Continue
+                Allow All Permissions
               </button>
               <div className="flex justify-center gap-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
                 <Link href="/privacy" className="hover:text-primary">Privacy Policy</Link>
