@@ -3,6 +3,7 @@ import { useUser, useCurrentUser } from "@/hooks/use-users";
 import { Avatar } from "@/components/Avatar";
 import { Layout } from "@/components/Layout";
 import { Link, useRoute } from "wouter";
+import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
 import {
   ArrowLeft,
   Phone,
@@ -27,6 +28,8 @@ import {
   Reply,
   Mic,
   Square,
+  Smile,
+  File,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import RecordRTC from "recordrtc";
@@ -92,7 +95,14 @@ export default function Chat() {
   const [wallpaper, setWallpaper] = useState(
     () => localStorage.getItem(`wallpaper-${userId}`) || "",
   );
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMediaOptions, setShowMediaOptions] = useState(false);
+  const docInputRef = useRef<HTMLInputElement>(null);
+
+  const onEmojiClick = (emojiData: EmojiClickData) => {
+    setContent((prev) => prev + emojiData.emoji);
+    setShowEmojiPicker(false);
+  };
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -542,6 +552,22 @@ export default function Chat() {
                             <div className="rounded-lg overflow-hidden border border-border/50 bg-muted/20">
                               <video src={msg.content} controls className="max-w-full max-h-64" />
                             </div>
+                          ) : msg.type === "document" ? (
+                            <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl border border-border/50 min-w-[200px]">
+                              <div className="p-2 bg-orange-500 rounded-lg text-white">
+                                <File className="w-5 h-5" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate text-foreground">Document</p>
+                                <a 
+                                  href={msg.content} 
+                                  download="document" 
+                                  className="text-[10px] text-primary hover:underline font-bold uppercase"
+                                >
+                                  Download
+                                </a>
+                              </div>
+                            </div>
                           ) : (
                             <p>
                               {msg.content.includes("\n\n")
@@ -651,6 +677,24 @@ export default function Chat() {
                       accept="image/*"
                       onChange={(e) => handleFileUpload(e, "image")}
                     />
+                    <input
+                      type="file"
+                      ref={docInputRef}
+                      className="hidden"
+                      onChange={(e) => handleFileUpload(e, "document" as any)}
+                    />
+                    <button
+                      onClick={() => {
+                        docInputRef.current?.click();
+                        setShowMediaOptions(false);
+                      }}
+                      className="p-3 hover:bg-primary/10 rounded-xl flex items-center gap-3 text-foreground transition-colors"
+                    >
+                      <div className="p-2 bg-orange-500 rounded-lg text-white">
+                        <File className="w-5 h-5" />
+                      </div>
+                      <span className="text-sm font-bold pr-4">Document</span>
+                    </button>
                     <button
                       onClick={() => {
                         videoInputRef.current?.click();
@@ -687,7 +731,18 @@ export default function Chat() {
                   <Paperclip className="w-6 h-6" />
                 </button>
               </div>
-              <div className="flex-1 bg-secondary/50 rounded-2xl p-2 border border-transparent focus-within:bg-background focus-within:border-primary/20 focus-within:ring-2 focus-within:ring-primary/10 transition-all flex items-center">
+              <div className="flex-1 bg-secondary/50 rounded-2xl p-2 border border-transparent focus-within:bg-background focus-within:border-primary/20 focus-within:ring-2 focus-within:ring-primary/10 transition-all flex items-center relative">
+                <button
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  className="p-2 text-muted-foreground hover:text-primary transition-colors"
+                >
+                  <Smile className="w-6 h-6" />
+                </button>
+                {showEmojiPicker && (
+                  <div className="absolute bottom-16 left-0 z-[100] shadow-2xl rounded-2xl overflow-hidden border">
+                    <EmojiPicker onEmojiClick={onEmojiClick} />
+                  </div>
+                )}
                 <input
                   type="text"
                   value={content}
