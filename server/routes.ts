@@ -157,10 +157,48 @@ export async function registerRoutes(
     const isValid = await storage.verifyOTP(phoneNumber, code);
     
     if (isValid) {
-      // In a real app, create a session here. 
-      // For now, we use Replit Auth for session management.
-      // This endpoint confirms the OTP is valid.
-      res.json({ success: true });
+      // Find or create user with this phone number
+      let user = await storage.searchUsers(phoneNumber).then(users => users.find(u => u.phoneNumber === phoneNumber));
+      
+      if (!user) {
+        // Create a new user if they don't exist
+        const claims = {
+          sub: `phone_${phoneNumber.replace(/\D/g, "")}`,
+          phone_number: phoneNumber,
+          first_name: "Zenix",
+          last_name: "User"
+        };
+        await storage.getUser(claims.sub).then(async (existing) => {
+          if (!existing) {
+            // We need to use the internal auth storage to ensure consistency
+            const { authStorage } = await import("./replit_integrations/auth/storage");
+            await authStorage.upsertUser({
+              id: claims.sub,
+              phoneNumber: phoneNumber,
+              firstName: claims.first_name,
+              lastName: claims.last_name,
+            });
+          }
+        });
+        user = await storage.getUser(claims.sub);
+      }
+
+      // Manually establish passport session
+      const passportUser = {
+        claims: {
+          sub: user!.id,
+          email: user!.email,
+          first_name: user!.firstName,
+          last_name: user!.lastName,
+          phone_number: user!.phoneNumber,
+        },
+        expires_at: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60), // 1 week
+      };
+
+      req.login(passportUser, (err) => {
+        if (err) return res.status(500).json({ message: "Login failed" });
+        res.json({ success: true, user });
+      });
     } else {
       res.status(400).json({ message: "Invalid or expired OTP" });
     }

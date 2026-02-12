@@ -84,8 +84,8 @@ export default function Home() {
         }
 
         toast({ title: "Success", description: "OTP Verified!" });
-        // Redirect to real login to establish session
-        window.location.href = "/api/login";
+        // Session is already established by the verify endpoint
+        window.location.reload();
       } catch (err) {
         toast({ title: "Verification Failed", description: "Invalid or expired code", variant: "destructive" });
         setOtp(["", "", "", "", "", ""]);
