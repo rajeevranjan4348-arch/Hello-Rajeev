@@ -116,8 +116,9 @@ export default function Chat() {
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const gifInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: "image" | "video") => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: "image" | "video" | "gif") => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -130,7 +131,7 @@ export default function Chat() {
           senderId: currentUser!.id,
           receiverId: userId,
           content: base64Data,
-          type: type,
+          type: type === "gif" ? "image" : type,
         },
         {
           onSuccess: () => {
@@ -667,7 +668,6 @@ export default function Chat() {
                       ref={videoInputRef}
                       className="hidden"
                       accept="video/*"
-                      capture="environment"
                       onChange={(e) => handleFileUpload(e, "video")}
                     />
                     <input
@@ -676,6 +676,13 @@ export default function Chat() {
                       className="hidden"
                       accept="image/*"
                       onChange={(e) => handleFileUpload(e, "image")}
+                    />
+                    <input
+                      type="file"
+                      ref={gifInputRef}
+                      className="hidden"
+                      accept="image/gif"
+                      onChange={(e) => handleFileUpload(e, "gif")}
                     />
                     <input
                       type="file"
@@ -697,15 +704,27 @@ export default function Chat() {
                     </button>
                     <button
                       onClick={() => {
+                        gifInputRef.current?.click();
+                        setShowMediaOptions(false);
+                      }}
+                      className="p-3 hover:bg-primary/10 rounded-xl flex items-center gap-3 text-foreground transition-colors"
+                    >
+                      <div className="p-2 bg-pink-500 rounded-lg text-white">
+                        <ImageIcon className="w-5 h-5" />
+                      </div>
+                      <span className="text-sm font-bold pr-4">GIF</span>
+                    </button>
+                    <button
+                      onClick={() => {
                         videoInputRef.current?.click();
                         setShowMediaOptions(false);
                       }}
                       className="p-3 hover:bg-primary/10 rounded-xl flex items-center gap-3 text-foreground transition-colors"
                     >
                       <div className="p-2 bg-blue-500 rounded-lg text-white">
-                        <Camera className="w-5 h-5" />
+                        <Video className="w-5 h-5" />
                       </div>
-                      <span className="text-sm font-bold pr-4">Camera</span>
+                      <span className="text-sm font-bold pr-4">Video</span>
                     </button>
                     <button
                       onClick={() => {
