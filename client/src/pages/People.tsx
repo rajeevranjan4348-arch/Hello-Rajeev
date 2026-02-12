@@ -60,6 +60,9 @@ export default function People() {
                     <p className="text-sm font-medium text-muted-foreground truncate opacity-80">
                       {user.phoneNumber || user.email}
                     </p>
+                    <p className="text-[10px] font-mono text-muted-foreground/50 truncate uppercase tracking-widest mt-1">
+                      ID: {user.id}
+                    </p>
                   </div>
                   <div className="mt-6 w-full pt-6 border-t border-border/40">
                     <button className="w-full py-3 rounded-xl bg-secondary/50 group-hover:bg-primary group-hover:text-white transition-all font-bold text-sm">
