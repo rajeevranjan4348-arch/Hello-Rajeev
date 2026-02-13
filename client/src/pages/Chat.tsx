@@ -47,6 +47,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+import { ContactInfo } from "@/components/ContactInfo";
+
 export default function Chat() {
   const [, params] = useRoute("/chat/:id");
   const userId = params?.id || "0";
@@ -60,6 +62,7 @@ export default function Chat() {
   const [content, setContent] = useState("");
   const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
   const [isCheckingFollow, setIsCheckingFollow] = useState(true);
+  const [showContactInfo, setShowContactInfo] = useState(false);
 
   useEffect(() => {
     const checkFollow = async () => {
@@ -307,7 +310,10 @@ export default function Chat() {
                 <ArrowLeft className="w-6 h-6 text-foreground" />
               </button>
             </Link>
-            <div className="flex items-center gap-3">
+            <div 
+              className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => setShowContactInfo(true)}
+            >
               <Avatar
                 name={`${user.firstName} ${user.lastName}`}
                 src={user.profileImageUrl}
@@ -345,7 +351,10 @@ export default function Chat() {
                 align="end"
                 className="w-56 rounded-2xl p-2 shadow-xl border-border bg-background/95 backdrop-blur-md"
               >
-                <DropdownMenuItem className="rounded-xl flex items-center gap-3 py-3 cursor-pointer">
+                <DropdownMenuItem 
+                  className="rounded-xl flex items-center gap-3 py-3 cursor-pointer"
+                  onClick={() => setShowContactInfo(true)}
+                >
                   <UserCircle className="w-4 h-4" />
                   <span className="font-medium">View Profile</span>
                 </DropdownMenuItem>
@@ -404,6 +413,10 @@ export default function Chat() {
             </DropdownMenu>
           </div>
         </header>
+
+        {showContactInfo && (
+          <ContactInfo userId={userId} onClose={() => setShowContactInfo(false)} />
+        )}
 
         <div
           className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-hide bg-slate-50/50 dark:bg-black/20"

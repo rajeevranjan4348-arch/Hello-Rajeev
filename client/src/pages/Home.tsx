@@ -278,7 +278,10 @@ export default function Home() {
                 <Plus className="w-4 h-4" />
                 <span className="font-medium">New Chat</span>
               </DropdownMenuItem>
-              <DropdownMenuItem className="rounded-xl flex items-center gap-3 py-3 cursor-pointer">
+              <DropdownMenuItem 
+                className="rounded-xl flex items-center gap-3 py-3 cursor-pointer"
+                onClick={() => setLocation("/people")}
+              >
                 <Users className="w-4 h-4" />
                 <span className="font-medium">New Group</span>
               </DropdownMenuItem>
