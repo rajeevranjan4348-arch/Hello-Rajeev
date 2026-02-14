@@ -70,7 +70,7 @@ export default function Settings() {
       items: [
         { icon: UserCircle, label: "Edit Profile", onClick: () => setLocation("/settings/personal") },
         { icon: Shield, label: "Privacy Settings", onClick: () => setLocation("/settings/privacy") },
-        { icon: User, label: "Account Settings", onClick: () => setLocation("/account") },
+        { icon: User, label: "Account Settings", onClick: () => setLocation("/account-settings") },
       ]
     },
     {
@@ -83,8 +83,9 @@ export default function Settings() {
     {
       title: "App Settings",
       items: [
-        { icon: Bell, label: "Notifications", onClick: () => {} },
+        { icon: Bell, label: "Notifications & Alerts", onClick: () => {} },
         { icon: Moon, label: "Dark Mode", onClick: toggleTheme, toggle: true, value: isDark },
+        { icon: ImageIcon, label: "Photo & Media Quality", onClick: () => {} },
         { icon: SettingsIcon, label: "App Settings", onClick: () => setLocation("/app-settings") },
       ]
     },
