@@ -8,14 +8,32 @@ export * from "./models/auth";
 
 // === TABLE DEFINITIONS ===
 
+export const groups = pgTable("groups", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  imageUrl: text("image_url"),
+  creatorId: text("creator_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const groupMembers = pgTable("group_members", {
+  id: serial("id").primaryKey(),
+  groupId: integer("group_id").notNull(),
+  userId: text("user_id").notNull(),
+  role: text("role").default("member"), // admin, member
+  joinedAt: timestamp("joined_at").defaultNow(),
+});
+
 export const messages = pgTable("messages", {
   id: serial("id").primaryKey(),
-  senderId: text("sender_id").notNull(), // Matching auth.users.id (varchar)
-  receiverId: text("receiver_id").notNull(), // Matching auth.users.id (varchar)
+  senderId: text("sender_id").notNull(),
+  receiverId: text("receiver_id"), // Nullable for group messages
+  groupId: integer("group_id"), // For group messages
   content: text("content").notNull(),
   isEdited: text("is_edited").default("false"),
   isDeleted: text("is_deleted").default("false"),
-  type: text("type").default("text"), // text, image, video, voice
+  type: text("type").default("text"),
   readAt: timestamp("read_at"),
   expiresAt: timestamp("expires_at"),
   createdAt: timestamp("created_at").defaultNow(),

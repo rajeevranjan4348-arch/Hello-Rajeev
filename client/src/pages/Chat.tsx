@@ -304,14 +304,14 @@ export default function Chat() {
     <Layout showNav={false}>
       <div className="flex flex-col h-screen bg-background">
         <header className="px-4 py-3 flex items-center justify-between border-b border-border bg-background/95 backdrop-blur-md sticky top-0 z-[100] w-full h-16">
-          <div className="flex items-center gap-3 overflow-visible">
+          <div className="flex items-center gap-2 overflow-visible">
             <Link href="/">
               <button className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors">
                 <ArrowLeft className="w-6 h-6 text-foreground" />
               </button>
             </Link>
             <div 
-              className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+              className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
               onClick={() => setShowContactInfo(true)}
             >
               <Avatar
@@ -321,29 +321,29 @@ export default function Chat() {
                 isOnline={user.isOnline || false}
               />
               <div className="flex flex-col min-w-0">
-                <h3 className="font-bold text-sm leading-tight truncate max-w-[150px] sm:max-w-[200px]">
+                <h3 className="font-bold text-sm leading-tight truncate max-w-[120px] sm:max-w-[180px]">
                   {user.firstName} {user.lastName}
                 </h3>
                 <span className="text-[10px] text-muted-foreground leading-none">
-                  {user.isOnline ? "Online" : "Offline"}
+                  {user.isOnline ? "online" : `last seen ${user.lastSeen ? format(new Date(user.lastSeen), 'h:mm a') : 'recently'}`}
                 </span>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             <Link href={`/call/${user.id}?type=voice`}>
-              <button className="p-2.5 rounded-full hover:bg-primary/10 hover:text-primary transition-colors">
-                <Phone className="w-5 h-5" />
+              <button className="p-2 rounded-full hover:bg-primary/10 hover:text-primary transition-colors">
+                <Video className="w-5 h-5" />
               </button>
             </Link>
             <Link href={`/call/${user.id}?type=video`}>
-              <button className="p-2.5 rounded-full hover:bg-primary/10 hover:text-primary transition-colors">
-                <Video className="w-5 h-5" />
+              <button className="p-2 rounded-full hover:bg-primary/10 hover:text-primary transition-colors">
+                <Phone className="w-5 h-5" />
               </button>
             </Link>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="p-2.5 rounded-full hover:bg-muted transition-colors outline-none">
+                <button className="p-2 rounded-full hover:bg-muted transition-colors outline-none">
                   <MoreVertical className="w-5 h-5" />
                 </button>
               </DropdownMenuTrigger>
