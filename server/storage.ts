@@ -83,9 +83,12 @@ export class DatabaseStorage implements IStorage {
 
   async getMessages(userId1: string, userId2: string): Promise<Message[]> {
     return await db.select().from(messages).where(
-      or(
-        and(eq(messages.senderId, userId1), eq(messages.receiverId, userId2)),
-        and(eq(messages.senderId, userId2), eq(messages.receiverId, userId1))
+      and(
+        or(
+          and(eq(messages.senderId, userId1), eq(messages.receiverId, userId2)),
+          and(eq(messages.senderId, userId2), eq(messages.receiverId, userId1))
+        ),
+        isNull(messages.groupId)
       )
     ).orderBy(messages.createdAt);
   }
