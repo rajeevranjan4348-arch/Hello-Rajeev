@@ -464,7 +464,7 @@ export default function Chat() {
               <p className="text-sm">No messages yet. Say hello!</p>
             </div>
           ) : (
-            <>
+            <div className="flex flex-col gap-2">
               {(messages || []).map((msg, idx) => {
                 const isMe = msg.senderId === currentUser.id;
                 const showAvatar =
@@ -659,7 +659,7 @@ export default function Chat() {
                   </div>
                 );
               })}
-            </>
+            </div>
           )}
           <div ref={messagesEndRef} />
         </div>
