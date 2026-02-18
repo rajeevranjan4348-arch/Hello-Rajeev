@@ -303,7 +303,7 @@ export default function Chat() {
   return (
     <Layout showNav={false}>
       <div className="flex flex-col h-screen bg-background">
-        <header className="px-4 py-3 flex items-center justify-between border-b border-border bg-background/95 backdrop-blur-md sticky top-0 z-[100] w-full h-16">
+        <header className="px-4 py-3 flex items-center justify-between border-b border-border bg-background/95 backdrop-blur-md sticky top-0 z-[100] w-full h-16 flex-shrink-0">
           <div className="flex items-center gap-2 overflow-visible">
             <Link href="/">
               <button className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors">
@@ -419,7 +419,7 @@ export default function Chat() {
         )}
 
         <div
-          className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-hide bg-slate-50/50 dark:bg-black/20"
+          className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-hide bg-slate-50/50 dark:bg-black/20 overscroll-contain"
           style={
             wallpaper
               ? {
@@ -464,205 +464,208 @@ export default function Chat() {
               <p className="text-sm">No messages yet. Say hello!</p>
             </div>
           ) : (
-          {messages?.map((msg, idx) => {
-              const isMe = msg.senderId === currentUser.id;
-              const showAvatar =
-                !isMe &&
-                (idx === 0 || messages[idx - 1].senderId !== msg.senderId);
-              const isEditing = editingId === msg.id;
-              const currentOffset = swipeOffset[msg.id] || 0;
+            <>
+              {(messages || []).map((msg, idx) => {
+                const isMe = msg.senderId === currentUser.id;
+                const showAvatar =
+                  !isMe &&
+                  (idx === 0 || messages[idx - 1].senderId !== msg.senderId);
+                const isEditing = editingId === msg.id;
+                const currentOffset = swipeOffset[msg.id] || 0;
 
-              // Date separator logic
-              const msgDate = new Date(msg.timestamp || Date.now());
-              const prevMsgDate = idx > 0 ? new Date(messages[idx - 1].timestamp || Date.now()) : null;
-              const isNewDay = !prevMsgDate || msgDate.toDateString() !== prevMsgDate.toDateString();
+                // Date separator logic
+                const msgDate = new Date(msg.timestamp || Date.now());
+                const prevMsgDate = idx > 0 ? new Date(messages[idx - 1].timestamp || Date.now()) : null;
+                const isNewDay = !prevMsgDate || msgDate.toDateString() !== prevMsgDate.toDateString();
 
-              return (
-                <div key={msg.id} className="flex flex-col gap-1">
-                  {isNewDay && (
-                    <div className="flex justify-center my-4">
-                      <span className="px-3 py-1 rounded-lg bg-muted/80 text-[11px] font-bold uppercase tracking-wider text-muted-foreground shadow-sm backdrop-blur-sm border border-border/40">
-                        {format(msgDate, 'MMMM d, yyyy')}
-                      </span>
-                    </div>
-                  )}
-                  <div
-                    className={cn(
-                      "flex gap-2 max-w-[80%] relative group/msg",
-                      isMe ? "ml-auto flex-row-reverse" : "",
-                    )}
-                    onMouseDown={(e) => handleTouchStart(msg.id, e)}
-                    onMouseUp={() => handleTouchEnd(msg)}
-                    onMouseLeave={() => handleTouchEnd(msg)}
-                    onTouchStart={(e) => handleTouchStart(msg.id, e)}
-                    onTouchMove={(e) => handleTouchMove(msg.id, e)}
-                    onTouchEnd={() => handleTouchEnd(msg)}
-                  >
-                  {!isMe && (
-                    <div className="w-8 flex-shrink-0">
-                      {showAvatar && (
-                        <Avatar
-                          name={`${user.firstName} ${user.lastName}`}
-                          src={user.profileImageUrl}
-                          size="sm"
-                        />
-                      )}
-                    </div>
-                  )}
-
-                  <div className="relative flex items-center">
-                    {currentOffset > 20 && (
-                      <div className="absolute -left-10 text-primary animate-in fade-in zoom-in duration-200">
-                        <Reply className="w-5 h-5" />
+                return (
+                  <div key={msg.id} className="flex flex-col gap-1">
+                    {isNewDay && (
+                      <div className="flex justify-center my-4">
+                        <span className="px-3 py-1 rounded-lg bg-muted/80 text-[11px] font-bold uppercase tracking-wider text-muted-foreground shadow-sm backdrop-blur-sm border border-border/40">
+                          {format(msgDate, 'MMMM d, yyyy')}
+                        </span>
                       </div>
                     )}
                     <div
                       className={cn(
-                        "p-3.5 rounded-2xl shadow-sm text-sm relative group transition-all cursor-pointer",
-                        isMe
-                          ? "bg-primary text-primary-foreground rounded-tr-sm"
-                          : "bg-white dark:bg-zinc-800 text-foreground rounded-tl-sm border border-border/50",
-                        selectedMessageId === msg.id &&
-                          "ring-4 ring-primary/30 scale-[1.02]",
+                        "flex gap-2 max-w-[80%] relative group/msg",
+                        isMe ? "ml-auto flex-row-reverse" : "",
                       )}
-                      style={{ transform: `translateX(${currentOffset}px)` }}
-                      onClick={() => setReplyingTo(msg)}
+                      onMouseDown={(e) => handleTouchStart(msg.id, e)}
+                      onMouseUp={() => handleTouchEnd(msg)}
+                      onMouseLeave={() => handleTouchEnd(msg)}
+                      onTouchStart={(e) => handleTouchStart(msg.id, e)}
+                      onTouchMove={(e) => handleTouchMove(msg.id, e)}
+                      onTouchEnd={() => handleTouchEnd(msg)}
                     >
-                      {msg.content.startsWith('Replying to: "') && (
-                        <div className="mb-2 p-2 bg-black/10 rounded-lg border-l-4 border-primary/50 italic text-xs">
-                          {msg.content.split("\n\n")[0]}
+                      {!isMe && (
+                        <div className="w-8 flex-shrink-0">
+                          {showAvatar && (
+                            <Avatar
+                              name={`${user.firstName} ${user.lastName}`}
+                              src={user.profileImageUrl}
+                              size="sm"
+                            />
+                          )}
                         </div>
                       )}
-                      {isEditing ? (
-                        <div className="space-y-2 min-w-[200px]">
-                          <input
-                            type="text"
-                            value={editContent}
-                            onChange={(e) => setEditContent(e.target.value)}
-                            className="w-full bg-white/10 p-2 rounded border border-white/20 outline-none"
-                            autoFocus
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") handleUpdate(msg.id);
-                              if (e.key === "Escape") setEditingId(null);
-                            }}
-                          />
-                          <div className="flex justify-end gap-2">
-                            <button
-                              onClick={() => setEditingId(null)}
-                              className="text-[10px] uppercase font-bold opacity-70"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              onClick={() => handleUpdate(msg.id)}
-                              className="text-[10px] uppercase font-bold"
-                            >
-                              Save
-                            </button>
+
+                      <div className="relative flex items-center">
+                        {currentOffset > 20 && (
+                          <div className="absolute -left-10 text-primary animate-in fade-in zoom-in duration-200">
+                            <Reply className="w-5 h-5" />
                           </div>
-                        </div>
-                      ) : (
-                        <>
-                          {msg.type === "voice" ? (
-                            <div className="flex items-center gap-3 py-1">
-                              <div className="p-2 bg-white/20 rounded-full">
-                                <Mic className="w-4 h-4" />
-                              </div>
-                              <audio src={msg.content} controls className="h-8 w-40" />
+                        )}
+                        <div
+                          className={cn(
+                            "p-3.5 rounded-2xl shadow-sm text-sm relative group transition-all cursor-pointer",
+                            isMe
+                              ? "bg-primary text-primary-foreground rounded-tr-sm"
+                              : "bg-white dark:bg-zinc-800 text-foreground rounded-tl-sm border border-border/50",
+                            selectedMessageId === msg.id &&
+                              "ring-4 ring-primary/30 scale-[1.02]",
+                          )}
+                          style={{ transform: `translateX(${currentOffset}px)` }}
+                          onClick={() => setReplyingTo(msg)}
+                        >
+                          {msg.content.startsWith('Replying to: "') && (
+                            <div className="mb-2 p-2 bg-black/10 rounded-lg border-l-4 border-primary/50 italic text-xs">
+                              {msg.content.split("\n\n")[0]}
                             </div>
-                          ) : msg.type === "image" ? (
-                            <div className="rounded-lg overflow-hidden border border-border/50 bg-muted/20">
-                              <img src={msg.content} alt="Sent photo" className="max-w-full max-h-64 object-contain" />
-                            </div>
-                          ) : msg.type === "video" ? (
-                            <div className="rounded-lg overflow-hidden border border-border/50 bg-muted/20">
-                              <video src={msg.content} controls className="max-w-full max-h-64" />
-                            </div>
-                          ) : msg.type === "document" ? (
-                            <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl border border-border/50 min-w-[200px]">
-                              <div className="p-2 bg-orange-500 rounded-lg text-white">
-                                <File className="w-5 h-5" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate text-foreground">Document</p>
-                                <a 
-                                  href={msg.content} 
-                                  download="document" 
-                                  className="text-[10px] text-primary hover:underline font-bold uppercase"
+                          )}
+                          {isEditing ? (
+                            <div className="space-y-2 min-w-[200px]">
+                              <input
+                                type="text"
+                                value={editContent}
+                                onChange={(e) => setEditContent(e.target.value)}
+                                className="w-full bg-white/10 p-2 rounded border border-white/20 outline-none"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleUpdate(msg.id);
+                                  if (e.key === "Escape") setEditingId(null);
+                                }}
+                              />
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  onClick={() => setEditingId(null)}
+                                  className="text-[10px] uppercase font-bold opacity-70"
                                 >
-                                  Download
-                                </a>
+                                  Cancel
+                                </button>
+                                <button
+                                  onClick={() => handleUpdate(msg.id)}
+                                  className="text-[10px] uppercase font-bold"
+                                >
+                                  Save
+                                </button>
                               </div>
                             </div>
                           ) : (
-                            <p>
-                              {msg.content.includes("\n\n")
-                                ? msg.content.split("\n\n").slice(1).join("\n\n")
-                                : msg.content}
-                            </p>
-                          )}
-                          <div className="flex items-center justify-between gap-4 mt-1">
-                            <span
-                              className={cn(
-                                "text-[10px] opacity-70 flex items-center gap-1",
-                                isMe
-                                  ? "text-primary-foreground"
-                                  : "text-muted-foreground",
+                            <>
+                              {msg.type === "voice" ? (
+                                <div className="flex items-center gap-3 py-1">
+                                  <div className="p-2 bg-white/20 rounded-full">
+                                    <Mic className="w-4 h-4" />
+                                  </div>
+                                  <audio src={msg.content} controls className="h-8 w-40" />
+                                </div>
+                              ) : msg.type === "image" ? (
+                                <div className="rounded-lg overflow-hidden border border-border/50 bg-muted/20">
+                                  <img src={msg.content} alt="Sent photo" className="max-w-full max-h-64 object-contain" />
+                                </div>
+                              ) : msg.type === "video" ? (
+                                <div className="rounded-lg overflow-hidden border border-border/50 bg-muted/20">
+                                  <video src={msg.content} controls className="max-w-full max-h-64" />
+                                </div>
+                              ) : msg.type === "document" ? (
+                                <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl border border-border/50 min-w-[200px]">
+                                  <div className="p-2 bg-orange-500 rounded-lg text-white">
+                                    <File className="w-5 h-5" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate text-foreground">Document</p>
+                                    <a 
+                                      href={msg.content} 
+                                      download="document" 
+                                      className="text-[10px] text-primary hover:underline font-bold uppercase"
+                                    >
+                                      Download
+                                    </a>
+                                  </div>
+                                </div>
+                              ) : (
+                                <p>
+                                  {msg.content.includes("\n\n")
+                                    ? msg.content.split("\n\n").slice(1).join("\n\n")
+                                    : msg.content}
+                                </p>
                               )}
-                            >
-                              {msg.isEdited === "true" && "(edited) "}
-                              {msg.createdAt &&
-                                format(new Date(msg.createdAt), "h:mm a")}
-                              {isMe && (
+                              <div className="flex items-center justify-between gap-4 mt-1">
                                 <span
                                   className={cn(
-                                    "text-[12px]",
-                                    msg.readAt
-                                      ? "text-blue-400"
-                                      : "text-white/60",
+                                    "text-[10px] opacity-70 flex items-center gap-1",
+                                    isMe
+                                      ? "text-primary-foreground"
+                                      : "text-muted-foreground",
                                   )}
                                 >
-                                  ⭐
+                                  {msg.isEdited === "true" && "(edited) "}
+                                  {msg.createdAt &&
+                                    format(new Date(msg.createdAt), "h:mm a")}
+                                  {isMe && (
+                                    <span
+                                      className={cn(
+                                        "text-[12px]",
+                                        msg.readAt
+                                          ? "text-blue-400"
+                                          : "text-white/60",
+                                      )}
+                                    >
+                                      ⭐
+                                    </span>
+                                  )}
                                 </span>
-                              )}
-                            </span>
-                            {isMe && msg.isDeleted !== "true" && (
-                              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEditingId(msg.id);
-                                    setEditContent(msg.content);
-                                  }}
-                                  className="hover:scale-110 transition-transform"
-                                >
-                                  <Pencil className="w-3 h-3" />
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDelete(msg.id);
-                                  }}
-                                  className="hover:scale-110 transition-transform text-red-200"
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </button>
+                                {isMe && msg.isDeleted !== "true" && (
+                                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditingId(msg.id);
+                                        setEditContent(msg.content);
+                                      }}
+                                      className="hover:scale-110 transition-transform"
+                                    >
+                                      <Pencil className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDelete(msg.id);
+                                      }}
+                                      className="hover:scale-110 transition-transform text-red-200"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                        </>
-                      )}
+                            </>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })
+                );
+              })}
+            </>
           )}
           <div ref={messagesEndRef} />
         </div>
 
         {isFollowing && (
-          <div className="p-4 bg-background border-t border-border">
+          <div className="p-4 bg-background border-t border-border sticky bottom-0 z-[100] flex-shrink-0">
             {replyingTo && (
               <div className="mb-2 p-3 bg-muted rounded-xl flex items-center justify-between animate-in slide-in-from-bottom-2 duration-200">
                 <div className="flex items-center gap-2 min-w-0">
