@@ -302,7 +302,7 @@ export default function Chat() {
 
   return (
     <Layout showNav={false}>
-      <div className="flex flex-col h-screen bg-background">
+      <div className="flex flex-col h-[100dvh] overflow-hidden relative bg-background">
         <header className="px-4 py-3 flex items-center justify-between border-b border-border bg-background/95 backdrop-blur-md sticky top-0 z-[100] w-full h-16 flex-shrink-0">
           <div className="flex items-center gap-2 overflow-visible">
             <Link href="/">
