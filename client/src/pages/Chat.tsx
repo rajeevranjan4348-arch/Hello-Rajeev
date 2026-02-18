@@ -464,7 +464,7 @@ export default function Chat() {
               <p className="text-sm">No messages yet. Say hello!</p>
             </div>
           ) : (
-            messages?.map((msg, idx) => {
+          {messages?.map((msg, idx) => {
               const isMe = msg.senderId === currentUser.id;
               const showAvatar =
                 !isMe &&
@@ -472,20 +472,32 @@ export default function Chat() {
               const isEditing = editingId === msg.id;
               const currentOffset = swipeOffset[msg.id] || 0;
 
+              // Date separator logic
+              const msgDate = new Date(msg.timestamp || Date.now());
+              const prevMsgDate = idx > 0 ? new Date(messages[idx - 1].timestamp || Date.now()) : null;
+              const isNewDay = !prevMsgDate || msgDate.toDateString() !== prevMsgDate.toDateString();
+
               return (
-                <div
-                  key={msg.id}
-                  className={cn(
-                    "flex gap-2 max-w-[80%] relative group/msg",
-                    isMe ? "ml-auto flex-row-reverse" : "",
+                <div key={msg.id} className="flex flex-col gap-1">
+                  {isNewDay && (
+                    <div className="flex justify-center my-4">
+                      <span className="px-3 py-1 rounded-lg bg-muted/80 text-[11px] font-bold uppercase tracking-wider text-muted-foreground shadow-sm backdrop-blur-sm border border-border/40">
+                        {format(msgDate, 'MMMM d, yyyy')}
+                      </span>
+                    </div>
                   )}
-                  onMouseDown={(e) => handleTouchStart(msg.id, e)}
-                  onMouseUp={() => handleTouchEnd(msg)}
-                  onMouseLeave={() => handleTouchEnd(msg)}
-                  onTouchStart={(e) => handleTouchStart(msg.id, e)}
-                  onTouchMove={(e) => handleTouchMove(msg.id, e)}
-                  onTouchEnd={() => handleTouchEnd(msg)}
-                >
+                  <div
+                    className={cn(
+                      "flex gap-2 max-w-[80%] relative group/msg",
+                      isMe ? "ml-auto flex-row-reverse" : "",
+                    )}
+                    onMouseDown={(e) => handleTouchStart(msg.id, e)}
+                    onMouseUp={() => handleTouchEnd(msg)}
+                    onMouseLeave={() => handleTouchEnd(msg)}
+                    onTouchStart={(e) => handleTouchStart(msg.id, e)}
+                    onTouchMove={(e) => handleTouchMove(msg.id, e)}
+                    onTouchEnd={() => handleTouchEnd(msg)}
+                  >
                   {!isMe && (
                     <div className="w-8 flex-shrink-0">
                       {showAvatar && (
