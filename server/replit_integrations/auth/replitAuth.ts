@@ -19,23 +19,25 @@ const getOidcConfig = memoize(
 );
 
 export function getSession() {
-  const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
+  const sessionTtl = 30 * 24 * 60 * 60 * 1000; // 30 days
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
     conString: process.env.DATABASE_URL,
     createTableIfMissing: false,
-    ttl: sessionTtl,
+    ttl: sessionTtl / 1000, // ttl is in seconds for connect-pg-simple
     tableName: "sessions",
   });
   return session({
     secret: process.env.SESSION_SECRET!,
     store: sessionStore,
-    resave: false,
+    resave: true, // Force session to be saved back to the session store
     saveUninitialized: false,
+    rolling: true, // Force a session identifier cookie to be set on every response
     cookie: {
       httpOnly: true,
       secure: true,
       maxAge: sessionTtl,
+      sameSite: "lax",
     },
   });
 }
@@ -135,6 +137,11 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
 
   if (!req.isAuthenticated() || !user.expires_at) {
     return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  // Extend session on every authenticated request to prevent timeout
+  if (req.session) {
+    req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // Reset to 30 days
   }
 
   const now = Math.floor(Date.now() / 1000);
