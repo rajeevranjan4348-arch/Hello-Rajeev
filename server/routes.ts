@@ -137,70 +137,75 @@ export async function registerRoutes(
     res.json({ success: true });
   });
 
-  // === OTP Routes ===
+  // === OTP Phone Auth Routes ===
 
-  app.post("/api/otp/send", async (req, res) => {
-    const { phoneNumber } = req.body;
-    if (!phoneNumber) return res.status(400).json({ message: "Phone number required" });
-    
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    await storage.createOTP(phoneNumber, code);
-    
-    // In a real app, send SMS here. For now, log it.
-    console.log(`OTP for ${phoneNumber}: ${code}`);
-    
-    res.json({ success: true, message: "OTP sent successfully (Demo)" });
+  app.post("/api/otp/send", async (req: any, res) => {
+    try {
+      const { phoneNumber } = req.body;
+      if (!phoneNumber) return res.status(400).json({ message: "Phone number required" });
+      const digits = phoneNumber.replace(/\D/g, "");
+      if (digits.length < 10) return res.status(400).json({ message: "Invalid phone number" });
+
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      await storage.createOTP(phoneNumber, code);
+      console.log(`[OTP] ${phoneNumber} -> ${code}`);
+
+      // Return code in response for demo (no SMS provider configured)
+      res.json({ success: true, code, expiresInSeconds: 120 });
+    } catch (err) {
+      console.error("Send OTP error:", err);
+      res.status(500).json({ message: "Failed to send OTP" });
+    }
   });
 
-  app.post("/api/otp/verify", async (req, res) => {
-    const { phoneNumber, code } = req.body;
-    const isValid = await storage.verifyOTP(phoneNumber, code);
-    
-    if (isValid) {
-      // Find or create user with this phone number
-      let user = await storage.searchUsers(phoneNumber).then(users => users.find(u => u.phoneNumber === phoneNumber));
-      
-      if (!user) {
-        // Create a new user if they don't exist
-        const claims = {
-          sub: `phone_${phoneNumber.replace(/\D/g, "")}`,
-          phone_number: phoneNumber,
-          first_name: "Zenix",
-          last_name: "User"
-        };
-        await storage.getUser(claims.sub).then(async (existing) => {
-          if (!existing) {
-            // We need to use the internal auth storage to ensure consistency
-            const { authStorage } = await import("./replit_integrations/auth/storage");
-            await authStorage.upsertUser({
-              id: claims.sub,
-              phoneNumber: phoneNumber,
-              firstName: claims.first_name,
-              lastName: claims.last_name,
-            });
-          }
-        });
-        user = await storage.getUser(claims.sub);
-      }
+  app.post("/api/otp/verify", async (req: any, res) => {
+    try {
+      const { phoneNumber, code, name } = req.body;
+      if (!phoneNumber || !code) return res.status(400).json({ message: "Phone number and OTP required" });
 
-      // Manually establish passport session
-      const passportUser = {
-        claims: {
-          sub: user!.id,
-          email: user!.email,
-          first_name: user!.firstName,
-          last_name: user!.lastName,
-          phone_number: user!.phoneNumber,
-        },
-        expires_at: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60), // 1 week
-      };
+      const isValid = await storage.verifyOTP(phoneNumber, code);
+      if (!isValid) return res.status(400).json({ message: "Invalid or expired OTP. Please try again." });
 
-      req.login(passportUser, (err) => {
-        if (err) return res.status(500).json({ message: "Login failed" });
+      // Find or create user by phone number
+      const user = await storage.upsertUserByPhone(phoneNumber, name);
+
+      // Store user ID in session (simple session-based auth)
+      req.session.otpUserId = user.id;
+      req.session.save((err: any) => {
+        if (err) return res.status(500).json({ message: "Session error" });
         res.json({ success: true, user });
       });
+    } catch (err) {
+      console.error("Verify OTP error:", err);
+      res.status(500).json({ message: "Verification failed" });
+    }
+  });
+
+  app.post("/api/otp/logout", async (req: any, res) => {
+    if (req.session?.otpUserId) {
+      delete req.session.otpUserId;
+      req.session.save(() => res.json({ success: true }));
     } else {
-      res.status(400).json({ message: "Invalid or expired OTP" });
+      res.json({ success: true });
+    }
+  });
+
+  // === User Profile Update ===
+  app.patch("/api/user/profile", isAuthenticated, async (req: any, res) => {
+    try {
+      const { firstName, lastName, bio } = req.body;
+      const userId = req.user.claims.sub;
+      const { authStorage } = await import("./replit_integrations/auth/storage");
+      const updated = await authStorage.upsertUser({
+        id: userId,
+        firstName: firstName?.trim() || undefined,
+        lastName: lastName?.trim() || undefined,
+        bio: bio?.trim() || undefined,
+      });
+      res.json(updated);
+    } catch (err) {
+      console.error("Profile update error:", err);
+      res.status(500).json({ message: "Failed to update profile" });
     }
   });
 

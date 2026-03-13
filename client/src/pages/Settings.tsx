@@ -180,7 +180,11 @@ export default function Settings() {
           ))}
 
           <button 
-            onClick={() => window.location.href = "/api/logout"}
+            onClick={() => {
+              fetch("/api/otp/logout", { method: "POST", credentials: "include" })
+                .then(() => { window.location.href = "/login"; })
+                .catch(() => { window.location.href = "/api/logout"; });
+            }}
             className="w-full p-6 rounded-[2rem] bg-red-500/10 text-red-500 font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 hover:bg-red-500 hover:text-white transition-all duration-300 shadow-lg shadow-red-500/5 active:scale-95"
           >
             <LogOut className="w-5 h-5" />

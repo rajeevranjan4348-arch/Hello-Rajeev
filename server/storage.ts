@@ -11,6 +11,8 @@ import { authStorage } from "./replit_integrations/auth/storage";
 export interface IStorage {
   // Auth & User methods
   getUser(id: string): Promise<User | undefined>;
+  getUserByPhone(phoneNumber: string): Promise<User | undefined>;
+  upsertUserByPhone(phoneNumber: string, name?: string): Promise<User>;
   getUsers(currentUserId: string): Promise<User[]>;
   searchUsers(query: string): Promise<User[]>;
   updateUserStatus(userId: string, isOnline: boolean): Promise<void>;
@@ -37,6 +39,24 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
     return authStorage.getUser(id);
+  }
+
+  async getUserByPhone(phoneNumber: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.phoneNumber, phoneNumber));
+    return user;
+  }
+
+  async upsertUserByPhone(phoneNumber: string, name?: string): Promise<User> {
+    const existing = await this.getUserByPhone(phoneNumber);
+    if (existing) return existing;
+    const firstName = name?.split(" ")[0] || "User";
+    const lastName = name?.split(" ").slice(1).join(" ") || phoneNumber.slice(-4);
+    const [user] = await db.insert(users).values({
+      phoneNumber,
+      firstName,
+      lastName,
+    }).returning();
+    return user;
   }
 
   async getUsers(currentUserId: string): Promise<(User & { lastMessage?: Message })[]> {
