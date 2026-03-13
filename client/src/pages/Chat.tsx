@@ -120,8 +120,9 @@ export default function Chat() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const gifInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: "image" | "video" | "gif") => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: "image" | "video" | "gif" | "document" | "audio") => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -129,17 +130,22 @@ export default function Chat() {
     reader.readAsDataURL(file);
     reader.onloadend = () => {
       const base64Data = reader.result as string;
+      const msgType = type === "gif" ? "image" : type;
       sendMessage(
         {
           senderId: currentUser!.id,
           receiverId: userId,
           content: base64Data,
-          type: type === "gif" ? "image" : type,
+          type: msgType,
         },
         {
           onSuccess: () => {
             toast({ title: `${type.charAt(0).toUpperCase() + type.slice(1)} sent` });
             setShowMediaOptions(false);
+            if (e.target) e.target.value = "";
+          },
+          onError: () => {
+            toast({ title: "Failed to send file", variant: "destructive" });
           },
         },
       );
@@ -564,7 +570,7 @@ export default function Chat() {
                             </div>
                           ) : (
                             <>
-                              {msg.type === "voice" ? (
+                              {msg.type === "voice" || msg.type === "audio" ? (
                                 <div className="flex items-center gap-3 py-1">
                                   <div className="p-2 bg-white/20 rounded-full">
                                     <Mic className="w-4 h-4" />
@@ -716,37 +722,27 @@ export default function Chat() {
                       type="file"
                       ref={docInputRef}
                       className="hidden"
-                      onChange={(e) => handleFileUpload(e, "document" as any)}
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
+                      onChange={(e) => handleFileUpload(e, "document")}
+                    />
+                    <input
+                      type="file"
+                      ref={audioInputRef}
+                      className="hidden"
+                      accept="audio/*"
+                      onChange={(e) => handleFileUpload(e, "audio")}
                     />
                     <button
-                      onClick={() => {
-                        docInputRef.current?.click();
-                        setShowMediaOptions(false);
-                      }}
+                      onClick={() => fileInputRef.current?.click()}
                       className="p-3 hover:bg-primary/10 rounded-xl flex items-center gap-3 text-foreground transition-colors"
                     >
-                      <div className="p-2 bg-orange-500 rounded-lg text-white">
-                        <File className="w-5 h-5" />
-                      </div>
-                      <span className="text-sm font-bold pr-4">Document</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        gifInputRef.current?.click();
-                        setShowMediaOptions(false);
-                      }}
-                      className="p-3 hover:bg-primary/10 rounded-xl flex items-center gap-3 text-foreground transition-colors"
-                    >
-                      <div className="p-2 bg-pink-500 rounded-lg text-white">
+                      <div className="p-2 bg-purple-500 rounded-lg text-white">
                         <ImageIcon className="w-5 h-5" />
                       </div>
-                      <span className="text-sm font-bold pr-4">GIF</span>
+                      <span className="text-sm font-bold pr-4">Photo</span>
                     </button>
                     <button
-                      onClick={() => {
-                        videoInputRef.current?.click();
-                        setShowMediaOptions(false);
-                      }}
+                      onClick={() => videoInputRef.current?.click()}
                       className="p-3 hover:bg-primary/10 rounded-xl flex items-center gap-3 text-foreground transition-colors"
                     >
                       <div className="p-2 bg-blue-500 rounded-lg text-white">
@@ -755,16 +751,31 @@ export default function Chat() {
                       <span className="text-sm font-bold pr-4">Video</span>
                     </button>
                     <button
-                      onClick={() => {
-                        fileInputRef.current?.click();
-                        setShowMediaOptions(false);
-                      }}
+                      onClick={() => audioInputRef.current?.click()}
                       className="p-3 hover:bg-primary/10 rounded-xl flex items-center gap-3 text-foreground transition-colors"
                     >
-                      <div className="p-2 bg-purple-500 rounded-lg text-white">
+                      <div className="p-2 bg-green-500 rounded-lg text-white">
+                        <Mic className="w-5 h-5" />
+                      </div>
+                      <span className="text-sm font-bold pr-4">Audio</span>
+                    </button>
+                    <button
+                      onClick={() => gifInputRef.current?.click()}
+                      className="p-3 hover:bg-primary/10 rounded-xl flex items-center gap-3 text-foreground transition-colors"
+                    >
+                      <div className="p-2 bg-pink-500 rounded-lg text-white">
                         <ImageIcon className="w-5 h-5" />
                       </div>
-                      <span className="text-sm font-bold pr-4">Gallery</span>
+                      <span className="text-sm font-bold pr-4">GIF</span>
+                    </button>
+                    <button
+                      onClick={() => docInputRef.current?.click()}
+                      className="p-3 hover:bg-primary/10 rounded-xl flex items-center gap-3 text-foreground transition-colors"
+                    >
+                      <div className="p-2 bg-orange-500 rounded-lg text-white">
+                        <File className="w-5 h-5" />
+                      </div>
+                      <span className="text-sm font-bold pr-4">Document</span>
                     </button>
                   </div>
                 )}
