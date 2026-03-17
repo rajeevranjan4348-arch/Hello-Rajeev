@@ -7,9 +7,10 @@ import {
   Laptop, Star, Archive, Settings, LogOut, Camera,
   CheckCheck, Check, Mic, Image as ImageIcon, Video,
   File, Pin, BellOff, MessageCircle, Phone, Bell,
-  UserPlus, HelpCircle, Edit3, X
+  UserPlus, HelpCircle, Edit3, X, ChevronRight
 } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
+import { useMessageNotifications } from "@/hooks/use-notifications";
 import { format, isToday, isYesterday } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -78,6 +79,36 @@ export default function Home() {
   const [archivedIds, setArchivedIds] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem(ARCHIVED_IDS_KEY) || "[]"); } catch { return []; }
   });
+
+  // Swipe-to-archive state
+  const [swipeOffsets, setSwipeOffsets] = useState<Record<string, number>>({});
+  const [swipeStartX, setSwipeStartX] = useState<Record<string, number>>({});
+  const [archiveConfirmId, setArchiveConfirmId] = useState<string | null>(null);
+
+  const handleSwipeStart = useCallback((id: string, clientX: number) => {
+    setSwipeStartX(prev => ({ ...prev, [id]: clientX }));
+  }, []);
+
+  const handleSwipeMove = useCallback((id: string, clientX: number) => {
+    const start = swipeStartX[id];
+    if (start === undefined) return;
+    const diff = start - clientX;
+    if (diff > 0) {
+      setSwipeOffsets(prev => ({ ...prev, [id]: Math.min(diff, 90) }));
+    }
+  }, [swipeStartX]);
+
+  const handleSwipeEnd = useCallback((id: string) => {
+    const offset = swipeOffsets[id] || 0;
+    if (offset > 60) {
+      setArchiveConfirmId(id);
+    }
+    setSwipeOffsets(prev => ({ ...prev, [id]: 0 }));
+    setSwipeStartX(prev => { const n = { ...prev }; delete n[id]; return n; });
+  }, [swipeOffsets]);
+
+  // Message notifications
+  useMessageNotifications(users, currentUser?.id, mutedIds);
 
   const togglePin = (id: string) => {
     const next = pinnedIds.includes(id) ? pinnedIds.filter(x => x !== id) : [id, ...pinnedIds];
@@ -341,24 +372,36 @@ export default function Home() {
                 const showDivider = idx > 0 && pinnedIds.includes(sortedUsers[idx - 1].id) && !isPinned;
 
                 return (
-                  <div key={user.id}>
+                  <div key={user.id} className="relative overflow-hidden">
                     {showDivider && (
                       <div className="px-4 py-2">
                         <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">ALL CHATS</div>
                       </div>
                     )}
 
+                    {/* Archive action (revealed by swipe) */}
+                    <div className="absolute right-0 top-0 bottom-0 flex items-center justify-end pr-4 bg-primary">
+                      <div className="flex flex-col items-center gap-1 text-white w-16">
+                        <Archive className="w-5 h-5" />
+                        <span className="text-[10px] font-bold">Archive</span>
+                      </div>
+                    </div>
+
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <div
                           onContextMenu={(e) => e.preventDefault()}
-                          className="w-full"
+                          className="w-full relative"
+                          style={{ transform: `translateX(-${swipeOffsets[user.id] || 0}px)`, transition: swipeStartX[user.id] !== undefined ? 'none' : 'transform 0.3s ease' }}
+                          onTouchStart={(e) => handleSwipeStart(user.id, e.touches[0].clientX)}
+                          onTouchMove={(e) => handleSwipeMove(user.id, e.touches[0].clientX)}
+                          onTouchEnd={() => handleSwipeEnd(user.id)}
                         >
                           <div
                             onClick={() => setLocation(`/chat/${user.id}`)}
                             className={cn(
-                              "flex items-center gap-3 px-4 py-3 hover:bg-muted/50 cursor-pointer transition-colors relative",
-                              isUnread && "bg-primary/3"
+                              "flex items-center gap-3 px-4 py-3 hover:bg-muted/50 cursor-pointer transition-colors relative bg-background",
+                              isUnread && "bg-primary/[0.03]"
                             )}
                           >
                             {/* Avatar */}
@@ -462,27 +505,76 @@ export default function Home() {
 
               {/* Archived chats row */}
               {archivedIds.length > 0 && (
-                <div
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 cursor-pointer border-t border-border/50 mt-2"
-                  onClick={() => {
-                    setArchivedIds([]);
-                    localStorage.setItem(ARCHIVED_IDS_KEY, "[]");
-                    toast({ title: "All chats unarchived" });
-                  }}
-                >
-                  <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                    <Archive className="w-5 h-5 text-muted-foreground" />
+                <div className="border-t border-border/30 mt-1">
+                  <div
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40 cursor-pointer transition-colors"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Archive className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm">Archived Chats</p>
+                      <p className="text-xs text-muted-foreground">{archivedIds.length} chat{archivedIds.length > 1 ? "s" : ""}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-white bg-primary px-2 py-0.5 rounded-full">{archivedIds.length}</span>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-sm">Archived</p>
-                    <p className="text-xs text-muted-foreground">{archivedIds.length} archived chat{archivedIds.length > 1 ? "s" : ""}</p>
+                  <div className="flex gap-2 px-4 pb-3">
+                    <button
+                      onClick={() => {
+                        setArchivedIds([]);
+                        localStorage.setItem(ARCHIVED_IDS_KEY, "[]");
+                        toast({ title: "All chats unarchived" });
+                      }}
+                      className="flex-1 py-2 rounded-xl bg-muted text-xs font-bold text-muted-foreground hover:bg-muted/80 transition-colors"
+                    >
+                      Unarchive All
+                    </button>
                   </div>
-                  <span className="text-xs font-bold text-primary">{archivedIds.length}</span>
                 </div>
               )}
             </div>
           )}
         </div>
+
+        {/* Archive Confirm Dialog */}
+        {archiveConfirmId && (
+          <div className="fixed inset-0 z-[300] flex items-end bg-black/50 backdrop-blur-sm" onClick={() => setArchiveConfirmId(null)}>
+            <div className="w-full bg-background rounded-t-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-4 duration-200" onClick={e => e.stopPropagation()}>
+              <div className="w-10 h-1 bg-border rounded-full mx-auto mb-5" />
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Archive className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <p className="font-bold text-base">Archive this chat?</p>
+                  <p className="text-xs text-muted-foreground">You can unarchive it anytime from the archived section</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setArchiveConfirmId(null)}
+                  className="flex-1 py-3 rounded-2xl bg-muted font-bold text-muted-foreground hover:bg-muted/80 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    toggleArchive(archiveConfirmId);
+                    toast({ title: "Chat archived", description: "Swipe the archive section to unarchive" });
+                    setArchiveConfirmId(null);
+                  }}
+                  className="flex-1 py-3 rounded-2xl bg-primary text-primary-foreground font-bold hover:bg-primary/90 transition-colors"
+                >
+                  Archive
+                </button>
+              </div>
+              <div className="h-4" />
+            </div>
+          </div>
+        )}
 
         {/* Floating Action Buttons */}
         <div className="fixed bottom-24 right-6 flex flex-col gap-3 z-40">

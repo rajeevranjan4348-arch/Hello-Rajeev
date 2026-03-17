@@ -161,6 +161,7 @@ export default function Chat() {
   const videoInputRef = useRef<HTMLInputElement>(null);
   const gifInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: "image" | "video" | "gif" | "document" | "audio") => {
     const file = e.target.files?.[0];
@@ -864,88 +865,46 @@ export default function Chat() {
             )}
             <div className="flex items-end gap-2 max-w-4xl mx-auto relative">
               <div className="flex flex-col items-center">
+                {/* Hidden file inputs */}
+                <input type="file" ref={videoInputRef} className="hidden" accept="video/*" onChange={(e) => handleFileUpload(e, "video")} />
+                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, "image")} />
+                <input type="file" ref={gifInputRef} className="hidden" accept="image/gif" onChange={(e) => handleFileUpload(e, "gif")} />
+                <input type="file" ref={docInputRef} className="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar" onChange={(e) => handleFileUpload(e, "document")} />
+                <input type="file" ref={audioInputRef} className="hidden" accept="audio/*" onChange={(e) => handleFileUpload(e, "audio")} />
+                <input type="file" ref={cameraInputRef} className="hidden" accept="image/*" capture="environment" onChange={(e) => handleFileUpload(e, "image")} />
+
                 {showMediaOptions && (
-                  <div className="absolute bottom-16 left-0 bg-background/95 backdrop-blur-md p-2 rounded-2xl border shadow-2xl z-50 animate-in slide-in-from-bottom-2 duration-200 flex flex-col gap-2">
-                    <input
-                      type="file"
-                      ref={videoInputRef}
-                      className="hidden"
-                      accept="video/*"
-                      onChange={(e) => handleFileUpload(e, "video")}
-                    />
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      className="hidden"
-                      accept="image/*"
-                      onChange={(e) => handleFileUpload(e, "image")}
-                    />
-                    <input
-                      type="file"
-                      ref={gifInputRef}
-                      className="hidden"
-                      accept="image/gif"
-                      onChange={(e) => handleFileUpload(e, "gif")}
-                    />
-                    <input
-                      type="file"
-                      ref={docInputRef}
-                      className="hidden"
-                      accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
-                      onChange={(e) => handleFileUpload(e, "document")}
-                    />
-                    <input
-                      type="file"
-                      ref={audioInputRef}
-                      className="hidden"
-                      accept="audio/*"
-                      onChange={(e) => handleFileUpload(e, "audio")}
-                    />
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="p-3 hover:bg-primary/10 rounded-xl flex items-center gap-3 text-foreground transition-colors"
+                  <div className="fixed inset-0 z-[150] flex items-end" onClick={() => setShowMediaOptions(false)}>
+                    <div
+                      className="w-full bg-background/98 backdrop-blur-lg border-t border-border rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom-4 duration-300 pb-8 pt-2"
+                      onClick={e => e.stopPropagation()}
                     >
-                      <div className="p-2 bg-purple-500 rounded-lg text-white">
-                        <ImageIcon className="w-5 h-5" />
+                      <div className="w-10 h-1 bg-border rounded-full mx-auto mb-4" />
+                      <p className="text-center text-xs font-black uppercase tracking-widest text-muted-foreground mb-4">Share</p>
+                      <div className="grid grid-cols-4 gap-4 px-6">
+                        {[
+                          { label: "Camera", icon: Camera, color: "bg-pink-500", action: () => cameraInputRef.current?.click() },
+                          { label: "Gallery", icon: ImageIcon, color: "bg-purple-500", action: () => fileInputRef.current?.click() },
+                          { label: "Video", icon: Video, color: "bg-blue-500", action: () => videoInputRef.current?.click() },
+                          { label: "Audio", icon: Mic, color: "bg-green-500", action: () => audioInputRef.current?.click() },
+                          { label: "Document", icon: File, color: "bg-orange-500", action: () => docInputRef.current?.click() },
+                          { label: "GIF", icon: Smile, color: "bg-yellow-500", action: () => gifInputRef.current?.click() },
+                          { label: "Contact", icon: UserCircle, color: "bg-teal-500", action: () => toast({ title: "Contact sharing coming soon" }) },
+                          { label: "Location", icon: Search, color: "bg-red-500", action: () => toast({ title: "Location sharing coming soon" }) },
+                        ].map(({ label, icon: Icon, color, action }) => (
+                          <button
+                            key={label}
+                            onClick={() => { action(); setShowMediaOptions(false); }}
+                            className="flex flex-col items-center gap-2 group"
+                          >
+                            <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 group-active:scale-95 transition-transform", color)}>
+                              <Icon className="w-7 h-7 text-white" />
+                            </div>
+                            <span className="text-[11px] font-bold text-muted-foreground">{label}</span>
+                          </button>
+                        ))}
                       </div>
-                      <span className="text-sm font-bold pr-4">Photo</span>
-                    </button>
-                    <button
-                      onClick={() => videoInputRef.current?.click()}
-                      className="p-3 hover:bg-primary/10 rounded-xl flex items-center gap-3 text-foreground transition-colors"
-                    >
-                      <div className="p-2 bg-blue-500 rounded-lg text-white">
-                        <Video className="w-5 h-5" />
-                      </div>
-                      <span className="text-sm font-bold pr-4">Video</span>
-                    </button>
-                    <button
-                      onClick={() => audioInputRef.current?.click()}
-                      className="p-3 hover:bg-primary/10 rounded-xl flex items-center gap-3 text-foreground transition-colors"
-                    >
-                      <div className="p-2 bg-green-500 rounded-lg text-white">
-                        <Mic className="w-5 h-5" />
-                      </div>
-                      <span className="text-sm font-bold pr-4">Audio</span>
-                    </button>
-                    <button
-                      onClick={() => gifInputRef.current?.click()}
-                      className="p-3 hover:bg-primary/10 rounded-xl flex items-center gap-3 text-foreground transition-colors"
-                    >
-                      <div className="p-2 bg-pink-500 rounded-lg text-white">
-                        <ImageIcon className="w-5 h-5" />
-                      </div>
-                      <span className="text-sm font-bold pr-4">GIF</span>
-                    </button>
-                    <button
-                      onClick={() => docInputRef.current?.click()}
-                      className="p-3 hover:bg-primary/10 rounded-xl flex items-center gap-3 text-foreground transition-colors"
-                    >
-                      <div className="p-2 bg-orange-500 rounded-lg text-white">
-                        <File className="w-5 h-5" />
-                      </div>
-                      <span className="text-sm font-bold pr-4">Document</span>
-                    </button>
+                    </div>
                   </div>
                 )}
                 <button
