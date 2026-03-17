@@ -871,6 +871,7 @@ export default function Chat() {
                 <input type="file" ref={gifInputRef} className="hidden" accept="image/gif" onChange={(e) => handleFileUpload(e, "gif")} />
                 <input type="file" ref={docInputRef} className="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar" onChange={(e) => handleFileUpload(e, "document")} />
                 <input type="file" ref={audioInputRef} className="hidden" accept="audio/*" onChange={(e) => handleFileUpload(e, "audio")} />
+                {/* @ts-ignore */}
                 <input type="file" ref={cameraInputRef} className="hidden" accept="image/*" capture="environment" onChange={(e) => handleFileUpload(e, "image")} />
 
                 {showMediaOptions && (

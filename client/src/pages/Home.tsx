@@ -20,6 +20,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
 import { cn } from "@/lib/utils";
 import logoImg from "@/assets/logo.png";
 
@@ -84,6 +85,10 @@ export default function Home() {
   const [swipeOffsets, setSwipeOffsets] = useState<Record<string, number>>({});
   const [swipeStartX, setSwipeStartX] = useState<Record<string, number>>({});
   const [archiveConfirmId, setArchiveConfirmId] = useState<string | null>(null);
+  // Context menu state
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const longPressRef = useRef<NodeJS.Timeout | null>(null);
+  const didLongPressRef = useRef(false);
 
   const handleSwipeStart = useCallback((id: string, clientX: number) => {
     setSwipeStartX(prev => ({ ...prev, [id]: clientX }));
@@ -379,126 +384,116 @@ export default function Home() {
                       </div>
                     )}
 
-                    {/* Archive action (revealed by swipe) */}
-                    <div className="absolute right-0 top-0 bottom-0 flex items-center justify-end pr-4 bg-primary">
-                      <div className="flex flex-col items-center gap-1 text-white w-16">
+                    {/* Archive action behind (revealed by swipe) */}
+                    <div className="absolute right-0 top-0 bottom-0 w-20 flex items-center justify-center bg-primary">
+                      <div className="flex flex-col items-center gap-1 text-white">
                         <Archive className="w-5 h-5" />
                         <span className="text-[10px] font-bold">Archive</span>
                       </div>
                     </div>
 
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <div
-                          onContextMenu={(e) => e.preventDefault()}
-                          className="w-full relative"
-                          style={{ transform: `translateX(-${swipeOffsets[user.id] || 0}px)`, transition: swipeStartX[user.id] !== undefined ? 'none' : 'transform 0.3s ease' }}
-                          onTouchStart={(e) => handleSwipeStart(user.id, e.touches[0].clientX)}
-                          onTouchMove={(e) => handleSwipeMove(user.id, e.touches[0].clientX)}
-                          onTouchEnd={() => handleSwipeEnd(user.id)}
-                        >
-                          <div
-                            onClick={() => setLocation(`/chat/${user.id}`)}
-                            className={cn(
-                              "flex items-center gap-3 px-4 py-3 hover:bg-muted/50 cursor-pointer transition-colors relative bg-background",
-                              isUnread && "bg-primary/[0.03]"
-                            )}
-                          >
-                            {/* Avatar */}
-                            <div className="relative flex-shrink-0">
-                              <Avatar
-                                name={`${user.firstName} ${user.lastName}`}
-                                src={user.profileImageUrl}
-                                isOnline={user.isOnline || false}
-                                size="lg"
-                              />
-                              {isPinned && (
-                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-muted rounded-full flex items-center justify-center border border-background">
-                                  <Pin className="w-2.5 h-2.5 text-muted-foreground" />
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Content */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between gap-2 mb-0.5">
-                                <div className="flex items-center gap-1 min-w-0">
-                                  <h3 className={cn(
-                                    "font-semibold truncate text-sm",
-                                    isUnread ? "text-foreground font-bold" : "text-foreground"
-                                  )}>
-                                    {user.firstName} {user.lastName}
-                                  </h3>
-                                  {isMuted && <BellOff className="w-3 h-3 text-muted-foreground flex-shrink-0" />}
-                                </div>
-                                <div className="flex items-center gap-1 flex-shrink-0">
-                                  <span className={cn(
-                                    "text-xs",
-                                    isUnread ? "text-primary font-bold" : "text-muted-foreground"
-                                  )}>
-                                    {formatChatTime(lastMsg?.createdAt)}
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-1 min-w-0 text-xs text-muted-foreground">
-                                  {isMe && <DeliveryTick msg={lastMsg} isMe={isMe} />}
-                                  {preview?.icon && <span className="flex-shrink-0">{preview.icon}</span>}
-                                  <span className={cn("truncate", isUnread && "text-foreground font-medium")}>
-                                    {isMe && <span className="text-muted-foreground">You: </span>}
-                                    {preview?.text || (user.bio || user.phoneNumber || "Tap to message")}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-1 flex-shrink-0">
-                                  {isMuted && (
-                                    <BellOff className="w-3 h-3 text-muted-foreground" />
-                                  )}
-                                  {isUnread && (
-                                    <div className={cn(
-                                      "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black",
-                                      isMuted ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground"
-                                    )}>
-                                      1
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
+                    {/* Chat row — tap to open, long-press for menu, swipe left to archive */}
+                    <div
+                      className={cn(
+                        "flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors relative bg-background select-none",
+                        isUnread && "bg-primary/[0.03]",
+                        openMenuId === user.id && "bg-muted/30"
+                      )}
+                      style={{
+                        transform: `translateX(-${swipeOffsets[user.id] || 0}px)`,
+                        transition: swipeStartX[user.id] !== undefined ? 'none' : 'transform 0.25s ease',
+                      }}
+                      onContextMenu={(e) => { e.preventDefault(); setOpenMenuId(user.id); }}
+                      onTouchStart={(e) => {
+                        didLongPressRef.current = false;
+                        handleSwipeStart(user.id, e.touches[0].clientX);
+                        longPressRef.current = setTimeout(() => {
+                          didLongPressRef.current = true;
+                          if (window.navigator.vibrate) window.navigator.vibrate(40);
+                          setOpenMenuId(user.id);
+                        }, 500);
+                      }}
+                      onTouchMove={(e) => {
+                        if (longPressRef.current) clearTimeout(longPressRef.current);
+                        handleSwipeMove(user.id, e.touches[0].clientX);
+                      }}
+                      onTouchEnd={() => {
+                        if (longPressRef.current) clearTimeout(longPressRef.current);
+                        const offset = swipeOffsets[user.id] || 0;
+                        handleSwipeEnd(user.id);
+                        if (!didLongPressRef.current && offset < 15) {
+                          setLocation(`/chat/${user.id}`);
+                        }
+                      }}
+                      onMouseDown={() => {
+                        didLongPressRef.current = false;
+                        longPressRef.current = setTimeout(() => {
+                          didLongPressRef.current = true;
+                          setOpenMenuId(user.id);
+                        }, 600);
+                      }}
+                      onMouseUp={() => {
+                        if (longPressRef.current) clearTimeout(longPressRef.current);
+                        if (!didLongPressRef.current) setLocation(`/chat/${user.id}`);
+                      }}
+                      onMouseLeave={() => {
+                        if (longPressRef.current) clearTimeout(longPressRef.current);
+                      }}
+                    >
+                      {/* Avatar */}
+                      <div className="relative flex-shrink-0">
+                        <Avatar
+                          name={`${user.firstName} ${user.lastName}`}
+                          src={user.profileImageUrl}
+                          isOnline={user.isOnline || false}
+                          size="lg"
+                        />
+                        {isPinned && (
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-muted rounded-full flex items-center justify-center border border-background">
+                            <Pin className="w-2.5 h-2.5 text-muted-foreground" />
                           </div>
+                        )}
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                          <div className="flex items-center gap-1 min-w-0">
+                            <h3 className={cn(
+                              "font-semibold truncate text-sm",
+                              isUnread ? "text-foreground font-bold" : "text-foreground"
+                            )}>
+                              {user.firstName} {user.lastName}
+                            </h3>
+                            {isMuted && <BellOff className="w-3 h-3 text-muted-foreground flex-shrink-0" />}
+                          </div>
+                          <span className={cn(
+                            "text-xs flex-shrink-0",
+                            isUnread ? "text-primary font-bold" : "text-muted-foreground"
+                          )}>
+                            {formatChatTime(lastMsg?.createdAt)}
+                          </span>
                         </div>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent className="w-52 rounded-2xl p-2 shadow-xl bg-background/95 backdrop-blur-md">
-                        <DropdownMenuItem
-                          className="rounded-xl flex items-center gap-3 py-2.5 cursor-pointer"
-                          onClick={() => togglePin(user.id)}
-                        >
-                          <Pin className="w-4 h-4" />
-                          <span className="font-medium">{isPinned ? "Unpin Chat" : "Pin Chat"}</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="rounded-xl flex items-center gap-3 py-2.5 cursor-pointer"
-                          onClick={() => toggleMute(user.id)}
-                        >
-                          <BellOff className="w-4 h-4" />
-                          <span className="font-medium">{isMuted ? "Unmute" : "Mute Notifications"}</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="rounded-xl flex items-center gap-3 py-2.5 cursor-pointer"
-                          onClick={() => { toggleArchive(user.id); toast({ title: "Chat archived" }); }}
-                        >
-                          <Archive className="w-4 h-4" />
-                          <span className="font-medium">Archive Chat</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="rounded-xl flex items-center gap-3 py-2.5 cursor-pointer"
-                          onClick={() => setLocation(`/chat/${user.id}`)}
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                          <span className="font-medium">Open Chat</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1 min-w-0 text-xs text-muted-foreground">
+                            {isMe && <DeliveryTick msg={lastMsg} isMe={isMe} />}
+                            {preview?.icon && <span className="flex-shrink-0">{preview.icon}</span>}
+                            <span className={cn("truncate", isUnread && "text-foreground font-medium")}>
+                              {isMe && "You: "}
+                              {preview?.text || (user.bio || user.phoneNumber || "Tap to message")}
+                            </span>
+                          </div>
+                          {isUnread && (
+                            <div className={cn(
+                              "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0",
+                              isMuted ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground"
+                            )}>
+                              1
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 );
               })}
@@ -538,6 +533,79 @@ export default function Home() {
             </div>
           )}
         </div>
+
+        {/* Long-press Context Menu */}
+        {openMenuId && (() => {
+          const menuUser = sortedUsers.find(u => u.id === openMenuId);
+          if (!menuUser) return null;
+          const isPinned = pinnedIds.includes(openMenuId);
+          const isMuted = mutedIds.includes(openMenuId);
+          return (
+            <div
+              className="fixed inset-0 z-[300] flex items-end bg-black/40 backdrop-blur-sm"
+              onClick={() => setOpenMenuId(null)}
+            >
+              <div
+                className="w-full bg-background rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom-4 duration-200 overflow-hidden"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="w-10 h-1 bg-border rounded-full mx-auto mt-3 mb-1" />
+                {/* User preview */}
+                <div className="flex items-center gap-3 px-6 py-4 border-b border-border/50">
+                  <Avatar
+                    name={`${menuUser.firstName} ${menuUser.lastName}`}
+                    src={menuUser.profileImageUrl}
+                    isOnline={(menuUser as any).isOnline || false}
+                    size="md"
+                  />
+                  <div>
+                    <p className="font-bold text-sm">{menuUser.firstName} {menuUser.lastName}</p>
+                    <p className="text-xs text-muted-foreground">{(menuUser as any).phoneNumber || "Zenix user"}</p>
+                  </div>
+                </div>
+                {/* Actions */}
+                <div className="divide-y divide-border/30">
+                  <button
+                    onClick={() => { setLocation(`/chat/${openMenuId}`); setOpenMenuId(null); }}
+                    className="w-full flex items-center gap-4 px-6 py-4 hover:bg-muted/50 transition-colors text-left"
+                  >
+                    <MessageCircle className="w-5 h-5 text-primary" />
+                    <span className="font-semibold text-sm">Open Chat</span>
+                  </button>
+                  <button
+                    onClick={() => { togglePin(openMenuId); setOpenMenuId(null); toast({ title: isPinned ? "Chat unpinned" : "Chat pinned" }); }}
+                    className="w-full flex items-center gap-4 px-6 py-4 hover:bg-muted/50 transition-colors text-left"
+                  >
+                    <Pin className="w-5 h-5 text-muted-foreground" />
+                    <span className="font-semibold text-sm">{isPinned ? "Unpin Chat" : "Pin Chat"}</span>
+                  </button>
+                  <button
+                    onClick={() => { toggleMute(openMenuId); setOpenMenuId(null); toast({ title: isMuted ? "Unmuted" : "Chat muted" }); }}
+                    className="w-full flex items-center gap-4 px-6 py-4 hover:bg-muted/50 transition-colors text-left"
+                  >
+                    <BellOff className="w-5 h-5 text-muted-foreground" />
+                    <span className="font-semibold text-sm">{isMuted ? "Unmute Notifications" : "Mute Notifications"}</span>
+                  </button>
+                  <button
+                    onClick={() => { setArchiveConfirmId(openMenuId); setOpenMenuId(null); }}
+                    className="w-full flex items-center gap-4 px-6 py-4 hover:bg-muted/50 transition-colors text-left"
+                  >
+                    <Archive className="w-5 h-5 text-muted-foreground" />
+                    <span className="font-semibold text-sm">Archive Chat</span>
+                  </button>
+                  <button
+                    onClick={() => setOpenMenuId(null)}
+                    className="w-full flex items-center gap-4 px-6 py-4 hover:bg-muted/50 transition-colors text-left text-muted-foreground"
+                  >
+                    <X className="w-5 h-5" />
+                    <span className="font-semibold text-sm">Cancel</span>
+                  </button>
+                </div>
+                <div className="h-6" />
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Archive Confirm Dialog */}
         {archiveConfirmId && (
