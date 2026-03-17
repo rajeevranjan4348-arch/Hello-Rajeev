@@ -30,6 +30,13 @@ import {
   Square,
   Smile,
   File,
+  CheckCheck,
+  Check,
+  Copy,
+  Star,
+  Forward,
+  X,
+  Info,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import RecordRTC from "recordrtc";
@@ -100,6 +107,39 @@ export default function Chat() {
   );
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMediaOptions, setShowMediaOptions] = useState(false);
+  const [reactions, setReactions] = useState<{ [msgId: number]: string }>(() => {
+    try { return JSON.parse(localStorage.getItem(`reactions-${userId}`) || "{}"); } catch { return {}; }
+  });
+  const [starredMsgs, setStarredMsgs] = useState<number[]>(() => {
+    try { return JSON.parse(localStorage.getItem("zenix-starred-msgs") || "[]"); } catch { return []; }
+  });
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [isTypingVisible, setIsTypingVisible] = useState(false);
+  const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const QUICK_REACTIONS = ["❤️", "😂", "😮", "😢", "👍", "🙏"];
+
+  const addReaction = (msgId: number, emoji: string) => {
+    const next = { ...reactions, [msgId]: emoji };
+    setReactions(next);
+    localStorage.setItem(`reactions-${userId}`, JSON.stringify(next));
+    setSelectedMessageId(null);
+    setShowReactionPicker(false);
+  };
+
+  const toggleStar = (msgId: number) => {
+    const next = starredMsgs.includes(msgId)
+      ? starredMsgs.filter(id => id !== msgId)
+      : [...starredMsgs, msgId];
+    setStarredMsgs(next);
+    localStorage.setItem("zenix-starred-msgs", JSON.stringify(next));
+  };
+
+  const copyMessage = (text: string) => {
+    navigator.clipboard.writeText(text).catch(() => {});
+    toast({ title: "Copied to clipboard" });
+    setSelectedMessageId(null);
+  };
   const docInputRef = useRef<HTMLInputElement>(null);
 
   const onEmojiClick = (emojiData: EmojiClickData) => {
@@ -609,57 +649,47 @@ export default function Chat() {
                                 </p>
                               )}
                               <div className="flex items-center justify-between gap-4 mt-1">
-                                <span
-                                  className={cn(
-                                    "text-[10px] opacity-70 flex items-center gap-1",
-                                    isMe
-                                      ? "text-primary-foreground"
-                                      : "text-muted-foreground",
+                                <div className="flex items-center gap-1">
+                                  {starredMsgs.includes(msg.id) && (
+                                    <Star className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400 flex-shrink-0" />
                                   )}
-                                >
-                                  {msg.isEdited === "true" && "(edited) "}
-                                  {msg.createdAt &&
-                                    format(new Date(msg.createdAt), "h:mm a")}
-                                  {isMe && (
-                                    <span
-                                      className={cn(
-                                        "text-[12px]",
-                                        msg.readAt
-                                          ? "text-blue-400"
-                                          : "text-white/60",
-                                      )}
-                                    >
-                                      ⭐
-                                    </span>
-                                  )}
-                                </span>
-                                {isMe && msg.isDeleted !== "true" && (
-                                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setEditingId(msg.id);
-                                        setEditContent(msg.content);
-                                      }}
-                                      className="hover:scale-110 transition-transform"
-                                    >
-                                      <Pencil className="w-3 h-3" />
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDelete(msg.id);
-                                      }}
-                                      className="hover:scale-110 transition-transform text-red-200"
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                    </button>
-                                  </div>
+                                  <span
+                                    className={cn(
+                                      "text-[10px] opacity-70 flex items-center gap-1",
+                                      isMe
+                                        ? "text-primary-foreground"
+                                        : "text-muted-foreground",
+                                    )}
+                                  >
+                                    {msg.isEdited === "true" && <span className="italic">(edited)</span>}
+                                    {msg.createdAt &&
+                                      format(new Date(msg.createdAt), "h:mm a")}
+                                  </span>
+                                </div>
+                                {isMe && (
+                                  <span className="flex-shrink-0">
+                                    {msg.readAt ? (
+                                      <CheckCheck className="w-3.5 h-3.5 text-blue-400" />
+                                    ) : (
+                                      <CheckCheck className="w-3.5 h-3.5 text-primary-foreground/50" />
+                                    )}
+                                  </span>
                                 )}
                               </div>
                             </>
                           )}
                         </div>
+                        {/* Reaction bubble */}
+                        {reactions[msg.id] && (
+                          <div className={cn(
+                            "absolute -bottom-3 text-sm px-1.5 py-0.5 rounded-full bg-background border border-border shadow-sm cursor-pointer hover:scale-110 transition-transform",
+                            isMe ? "left-2" : "right-2"
+                          )}
+                          onClick={() => addReaction(msg.id, reactions[msg.id])}
+                          >
+                            {reactions[msg.id]}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -667,8 +697,147 @@ export default function Chat() {
               })}
             </div>
           )}
+          {/* Typing Indicator */}
+          {isTypingVisible && (
+            <div className="flex items-center gap-2 px-4 py-2 animate-in fade-in duration-200">
+              <Avatar
+                name={`${user?.firstName} ${user?.lastName}`}
+                src={user?.profileImageUrl}
+                size="sm"
+              />
+              <div className="flex items-center gap-1 px-3 py-2 bg-white dark:bg-zinc-800 rounded-2xl rounded-tl-sm border border-border/50 shadow-sm">
+                <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+              </div>
+            </div>
+          )}
           <div ref={messagesEndRef} />
         </div>
+
+        {/* Message Context Menu Bottom Sheet */}
+        {selectedMessageId !== null && (() => {
+          const selectedMsg = messages?.find(m => m.id === selectedMessageId);
+          const isMyMsg = selectedMsg?.senderId === currentUser?.id;
+          return (
+            <div
+              className="fixed inset-0 z-[200] flex items-end"
+              onClick={() => { setSelectedMessageId(null); setShowReactionPicker(false); }}
+            >
+              <div
+                className="w-full bg-background rounded-t-3xl border-t border-border shadow-2xl animate-in slide-in-from-bottom-4 duration-200"
+                onClick={e => e.stopPropagation()}
+              >
+                {/* Quick Reactions */}
+                <div className="flex justify-center gap-3 px-4 pt-4 pb-3 border-b border-border/50">
+                  {QUICK_REACTIONS.map(emoji => (
+                    <button
+                      key={emoji}
+                      onClick={() => selectedMsg && addReaction(selectedMsg.id, emoji)}
+                      className="text-2xl hover:scale-125 active:scale-95 transition-transform p-1 rounded-full hover:bg-muted"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setShowReactionPicker(true)}
+                    className="text-xl hover:scale-125 active:scale-95 transition-transform p-2 rounded-full hover:bg-muted text-muted-foreground"
+                  >
+                    <Smile className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Preview of selected message */}
+                {selectedMsg && (
+                  <div className="px-4 py-2 bg-muted/30">
+                    <p className="text-xs text-muted-foreground truncate">
+                      {selectedMsg.type === "text"
+                        ? (selectedMsg.content.includes("\n\n")
+                            ? selectedMsg.content.split("\n\n").slice(1).join(" ")
+                            : selectedMsg.content)
+                        : `📎 ${selectedMsg.type}`}
+                    </p>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="grid grid-cols-4 divide-x divide-border/50">
+                  <button
+                    onClick={() => { selectedMsg && setReplyingTo(selectedMsg); setSelectedMessageId(null); }}
+                    className="flex flex-col items-center gap-1.5 py-4 hover:bg-muted/50 transition-colors"
+                  >
+                    <Reply className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-[10px] font-bold text-muted-foreground">Reply</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      const text = selectedMsg?.type === "text"
+                        ? (selectedMsg.content.includes("\n\n")
+                            ? selectedMsg.content.split("\n\n").slice(1).join(" ")
+                            : selectedMsg.content)
+                        : selectedMsg?.content || "";
+                      copyMessage(text);
+                    }}
+                    className="flex flex-col items-center gap-1.5 py-4 hover:bg-muted/50 transition-colors"
+                  >
+                    <Copy className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-[10px] font-bold text-muted-foreground">Copy</span>
+                  </button>
+                  <button
+                    onClick={() => { selectedMsg && toggleStar(selectedMsg.id); setSelectedMessageId(null); toast({ title: starredMsgs.includes(selectedMsg!.id) ? "Unstarred" : "Message starred ⭐" }); }}
+                    className="flex flex-col items-center gap-1.5 py-4 hover:bg-muted/50 transition-colors"
+                  >
+                    <Star className={cn("w-5 h-5", selectedMsg && starredMsgs.includes(selectedMsg.id) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground")} />
+                    <span className="text-[10px] font-bold text-muted-foreground">Star</span>
+                  </button>
+                  <button
+                    onClick={() => { toast({ title: "Forward (coming soon)" }); setSelectedMessageId(null); }}
+                    className="flex flex-col items-center gap-1.5 py-4 hover:bg-muted/50 transition-colors"
+                  >
+                    <Forward className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-[10px] font-bold text-muted-foreground">Forward</span>
+                  </button>
+                </div>
+
+                <div className="border-t border-border/50 divide-y divide-border/50">
+                  {isMyMsg && selectedMsg?.type === "text" && selectedMsg?.isDeleted !== "true" && (
+                    <button
+                      onClick={() => { setEditingId(selectedMsg!.id); setEditContent(selectedMsg!.content.includes("\n\n") ? selectedMsg!.content.split("\n\n").slice(1).join("\n\n") : selectedMsg!.content); setSelectedMessageId(null); }}
+                      className="w-full flex items-center gap-3 px-6 py-3.5 hover:bg-muted/50 transition-colors text-left"
+                    >
+                      <Pencil className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Edit Message</span>
+                    </button>
+                  )}
+                  {isMyMsg && selectedMsg?.isDeleted !== "true" && (
+                    <button
+                      onClick={() => { handleDelete(selectedMsg!.id); setSelectedMessageId(null); }}
+                      className="w-full flex items-center gap-3 px-6 py-3.5 hover:bg-destructive/10 transition-colors text-left text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span className="text-sm font-medium">Delete Message</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { toast({ title: `Message info — sent ${selectedMsg?.createdAt ? format(new Date(selectedMsg.createdAt), "PPp") : "unknown"}` }); setSelectedMessageId(null); }}
+                    className="w-full flex items-center gap-3 px-6 py-3.5 hover:bg-muted/50 transition-colors text-left"
+                  >
+                    <Info className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Message Info</span>
+                  </button>
+                  <button
+                    onClick={() => { setSelectedMessageId(null); setShowReactionPicker(false); }}
+                    className="w-full flex items-center gap-3 px-6 py-3.5 hover:bg-muted/50 transition-colors text-left text-muted-foreground"
+                  >
+                    <X className="w-4 h-4" />
+                    <span className="text-sm font-medium">Cancel</span>
+                  </button>
+                </div>
+                <div className="h-safe-area-inset-bottom pb-4" />
+              </div>
+            </div>
+          );
+        })()}
 
         {isFollowing && (
           <div className="p-4 bg-background border-t border-border sticky bottom-0 z-[100] flex-shrink-0">
