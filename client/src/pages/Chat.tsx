@@ -116,6 +116,8 @@ export default function Chat() {
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [isTypingVisible, setIsTypingVisible] = useState(false);
   const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTapRef = useRef<{ id: number; time: number } | null>(null);
+  const [doubleTapHeartId, setDoubleTapHeartId] = useState<number | null>(null);
 
   const QUICK_REACTIONS = ["❤️", "😂", "😮", "😢", "👍", "🙏"];
 
@@ -139,6 +141,34 @@ export default function Chat() {
     navigator.clipboard.writeText(text).catch(() => {});
     toast({ title: "Copied to clipboard" });
     setSelectedMessageId(null);
+  };
+
+  const QUICK_REPLIES = ["👍", "😂", "❤️", "OK", "Thanks!", "On my way!", "Yes", "No", "😊", "🙏"];
+
+  const sendQuickReply = (text: string) => {
+    if (!currentUser) return;
+    if (window.navigator.vibrate) window.navigator.vibrate(20);
+    sendMessage({
+      senderId: currentUser.id,
+      receiverId: userId,
+      content: text,
+      type: "text",
+    });
+  };
+
+  const handleDoubleTap = (msg: Message) => {
+    const now = Date.now();
+    const last = lastTapRef.current;
+    if (last && last.id === msg.id && now - last.time < 350) {
+      // Double tap — react with ❤️
+      addReaction(msg.id, "❤️");
+      setDoubleTapHeartId(msg.id);
+      if (window.navigator.vibrate) window.navigator.vibrate(30);
+      setTimeout(() => setDoubleTapHeartId(null), 800);
+      lastTapRef.current = null;
+    } else {
+      lastTapRef.current = { id: msg.id, time: now };
+    }
   };
   const docInputRef = useRef<HTMLInputElement>(null);
 
@@ -539,6 +569,7 @@ export default function Chat() {
                         "flex gap-2 max-w-[80%] relative group/msg",
                         isMe ? "ml-auto flex-row-reverse" : "",
                       )}
+                      onClick={() => handleDoubleTap(msg)}
                       onMouseDown={(e) => handleTouchStart(msg.id, e)}
                       onMouseUp={() => handleTouchEnd(msg)}
                       onMouseLeave={() => handleTouchEnd(msg)}
@@ -559,6 +590,12 @@ export default function Chat() {
                       )}
 
                       <div className="relative flex items-center">
+                        {/* Double-tap ❤️ animation */}
+                        {doubleTapHeartId === msg.id && (
+                          <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+                            <span className="text-4xl animate-ping-once select-none">❤️</span>
+                          </div>
+                        )}
                         {currentOffset > 20 && (
                           <div className="absolute -left-10 text-primary animate-in fade-in zoom-in duration-200">
                             <Reply className="w-5 h-5" />
@@ -841,7 +878,22 @@ export default function Chat() {
         })()}
 
         {isFollowing && (
-          <div className="p-4 bg-background border-t border-border sticky bottom-0 z-[100] flex-shrink-0">
+          <div className="bg-background border-t border-border sticky bottom-0 z-[100] flex-shrink-0">
+            {/* Quick reply chips */}
+            {!content && !replyingTo && (
+              <div className="flex gap-2 overflow-x-auto px-4 pt-3 pb-1 scrollbar-hide">
+                {QUICK_REPLIES.map((qr) => (
+                  <button
+                    key={qr}
+                    onClick={() => sendQuickReply(qr)}
+                    className="flex-shrink-0 px-3 py-1.5 rounded-full border border-border/70 bg-secondary/60 text-sm font-medium hover:bg-primary hover:text-primary-foreground hover:border-primary active:scale-95 transition-all duration-150"
+                  >
+                    {qr}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="p-4">
             {replyingTo && (
               <div className="mb-2 p-3 bg-muted rounded-xl flex items-center justify-between animate-in slide-in-from-bottom-2 duration-200">
                 <div className="flex items-center gap-2 min-w-0">
@@ -967,6 +1019,7 @@ export default function Chat() {
                   <Mic className="w-6 h-6" />
                 </button>
               )}
+            </div>
             </div>
           </div>
         )}

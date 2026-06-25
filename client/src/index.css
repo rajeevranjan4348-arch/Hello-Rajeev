@@ -100,3 +100,13 @@
 .glass-card {
   @apply bg-card/80 backdrop-blur-md border border-border/50 shadow-lg;
 }
+
+@keyframes ping-once {
+  0%   { transform: scale(0.5); opacity: 0; }
+  40%  { transform: scale(1.4); opacity: 1; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+.animate-ping-once {
+  animation: ping-once 0.7s ease-out forwards;
+}
