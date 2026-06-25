@@ -311,22 +311,20 @@ export default function Chat() {
     if (!content.trim() || !currentUser) return;
 
     const messageContent = content.trim();
-    sendMessage(
-      {
-        senderId: currentUser.id,
-        receiverId: userId,
-        content: replyingTo
-          ? `Replying to: "${replyingTo.content.substring(0, 50)}..."\n\n${messageContent}`
-          : messageContent,
-        type: "text",
-      },
-      {
-        onSuccess: () => {
-          setContent("");
-          setReplyingTo(null);
-        },
-      },
-    );
+    const replyPrefix = replyingTo
+      ? `Replying to: "${replyingTo.content.substring(0, 50)}..."\n\n`
+      : "";
+
+    // Clear input INSTANTLY — don't wait for server
+    setContent("");
+    setReplyingTo(null);
+
+    sendMessage({
+      senderId: currentUser.id,
+      receiverId: userId,
+      content: replyPrefix + messageContent,
+      type: "text",
+    });
   };
 
   const handleUpdate = async (id: number) => {
