@@ -28,7 +28,7 @@ export function getSession() {
       const pgStore = connectPg(session);
       sessionStore = new pgStore({
         conString: process.env.DATABASE_URL,
-        createTableIfMissing: false,
+        createTableIfMissing: true,
         ttl: sessionTtl / 1000, // ttl is in seconds for connect-pg-simple
         tableName: "sessions",
       });
@@ -45,6 +45,7 @@ export function getSession() {
   }
 
   return session({
+    // Keep SESSION_SECRET stable across deploys/restarts; configure it in production environment variables.
     secret: process.env.SESSION_SECRET || "zenix_session_secret_key_2026",
     store: sessionStore,
     resave: false,
@@ -52,7 +53,7 @@ export function getSession() {
     rolling: true,
     cookie: {
       httpOnly: true,
-      secure: false, // Ensures session cookies work in dev preview iframes
+      secure: process.env.NODE_ENV === "production", // HTTPS-only in production; HTTP remains usable in development
       maxAge: sessionTtl,
       sameSite: "lax",
     },
