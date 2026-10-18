@@ -1,13 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
 import { InsertMessage, Message } from "@shared/schema";
+import { getAuthHeaders } from "@/lib/auth-utils";
 
 export function useMessages(userId: string) {
   return useQuery({
     queryKey: [api.messages.list.path, userId],
     queryFn: async () => {
       const url = buildUrl(api.messages.list.path, { userId });
-      const res = await fetch(url, { credentials: "include" });
+      const res = await fetch(url, {
+        headers: getAuthHeaders(),
+        credentials: "include",
+      });
       if (!res.ok) throw new Error("Failed to fetch messages");
       return api.messages.list.responses[200].parse(await res.json());
     },
@@ -24,7 +28,10 @@ export function useSendMessage() {
     mutationFn: async (data: InsertMessage) => {
       const res = await fetch(api.messages.send.path, {
         method: api.messages.send.method,
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
         body: JSON.stringify(data),
         credentials: "include",
       });

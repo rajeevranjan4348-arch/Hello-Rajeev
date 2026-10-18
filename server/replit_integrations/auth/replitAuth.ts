@@ -6,6 +6,7 @@ import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
+import memorystore from "memorystore";
 import { authStorage } from "./storage";
 
 const getOidcConfig = memoize(
@@ -20,24 +21,40 @@ const getOidcConfig = memoize(
 
 export function getSession() {
   const sessionTtl = 30 * 24 * 60 * 60 * 1000; // 30 days
-  const pgStore = connectPg(session);
-  const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
-    ttl: sessionTtl / 1000, // ttl is in seconds for connect-pg-simple
-    tableName: "sessions",
-  });
+  let sessionStore: any;
+  if (process.env.DATABASE_URL) {
+    try {
+      const pgStore = connectPg(session);
+      sessionStore = new pgStore({
+        conString: process.env.DATABASE_URL,
+        createTableIfMissing: false,
+        ttl: sessionTtl / 1000, // ttl is in seconds for connect-pg-simple
+        tableName: "sessions",
+      });
+    } catch (e) {
+      console.warn("[Auth] Failed to initialize pg session store, using MemoryStore:", e);
+    }
+  }
+
+  if (!sessionStore) {
+    const MemoryStore = memorystore(session);
+    sessionStore = new MemoryStore({
+      checkPeriod: 86400000,
+    });
+  }
+
   return session({
-    secret: process.env.SESSION_SECRET!,
+    secret: process.env.SESSION_SECRET || "zenix-secure-session-secret-key-2026",
     store: sessionStore,
     resave: true, // Force session to be saved back to the session store
     saveUninitialized: false,
     rolling: true, // Force a session identifier cookie to be set on every response
+    proxy: true,
     cookie: {
       httpOnly: true,
-      secure: true,
+      secure: "auto",
       maxAge: sessionTtl,
-      sameSite: "lax",
+      sameSite: "none",
     },
   });
 }
@@ -68,7 +85,21 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  const config = await getOidcConfig();
+  passport.serializeUser((user: Express.User, cb) => cb(null, user));
+  passport.deserializeUser((user: Express.User, cb) => cb(null, user));
+
+  if (!process.env.REPL_ID) {
+    console.log("[Auth] REPL_ID not set — Replit OIDC skipped. Phone/OTP authentication active.");
+    return;
+  }
+
+  let config: any;
+  try {
+    config = await getOidcConfig();
+  } catch (err) {
+    console.warn("[Auth] Replit OIDC discovery failed:", err);
+    return;
+  }
 
   const verify: VerifyFunction = async (
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
@@ -101,8 +132,6 @@ export async function setupAuth(app: Express) {
     }
   };
 
-  passport.serializeUser((user: Express.User, cb) => cb(null, user));
-  passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
   app.get("/api/login", (req, res, next) => {
     ensureStrategy(req.hostname);
@@ -133,12 +162,54 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req: any, res, next) => {
+  // Support Header-based auth (for iframes where 3rd-party cookies are blocked)
+  const authHeader = req.headers.authorization;
+  const headerUserId =
+    (authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null) ||
+    req.headers["x-user-id"];
+
+  if (headerUserId) {
+    const user = await authStorage.getUser(String(headerUserId));
+    if (user) {
+      req.user = { claims: { sub: user.id }, expires_at: Infinity };
+      if (req.session) {
+        req.session.otpUserId = user.id;
+      }
+      return next();
+    }
+  }
+
   // Support OTP-based phone auth (session-stored userId)
   if (req.session?.otpUserId) {
     req.user = { claims: { sub: req.session.otpUserId }, expires_at: Infinity };
     // Extend session on every request
     req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000;
     return next();
+  }
+
+  // Fallback: Check if request body contains userId or phoneNumberFallback
+  if (req.body?.userId) {
+    const user = await authStorage.getUser(String(req.body.userId));
+    if (user) {
+      req.user = { claims: { sub: user.id }, expires_at: Infinity };
+      if (req.session) {
+        req.session.otpUserId = user.id;
+      }
+      return next();
+    }
+  }
+
+  if (req.body?.phoneNumberFallback || req.body?.phoneNumber) {
+    const phone = String(req.body.phoneNumberFallback || req.body.phoneNumber);
+    const { storage } = await import("../../storage");
+    const user = await storage.getUserByPhone(phone);
+    if (user) {
+      req.user = { claims: { sub: user.id }, expires_at: Infinity };
+      if (req.session) {
+        req.session.otpUserId = user.id;
+      }
+      return next();
+    }
   }
 
   const user = req.user as any;

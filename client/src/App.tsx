@@ -24,11 +24,9 @@ import { Loader2 } from "lucide-react";
 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
-import { AppErrorBoundary } from "@/components/AppErrorBoundary";
-import { QueryErrorState } from "@/components/QueryErrorState";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { user, isLoading, isError, refetch } = useAuth();
+  const { user, isLoading } = useAuth();
   const [location] = useLocation();
 
   if (isLoading) {
@@ -38,18 +36,6 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
           <img src={logoImg} alt="Zenix" className="w-16 h-16 rounded-2xl shadow-xl animate-pulse" />
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
         </div>
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4">
-        <QueryErrorState
-          title="Couldn't verify your session"
-          description="Your account could not be checked. Please try again."
-          onRetry={refetch}
-        />
       </div>
     );
   }
@@ -131,11 +117,9 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <AppErrorBoundary>
-          <AuthGuard>
-            <Router />
-          </AuthGuard>
-        </AppErrorBoundary>
+        <AuthGuard>
+          <Router />
+        </AuthGuard>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>

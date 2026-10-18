@@ -173,7 +173,7 @@ export async function registerRoutes(
       req.session.otpUserId = user.id;
       req.session.save((err: any) => {
         if (err) return res.status(500).json({ message: "Session error" });
-        res.json({ success: true, user });
+        res.json({ success: true, user, token: user.id });
       });
     } catch (err) {
       console.error("Verify OTP error:", err);
@@ -191,23 +191,34 @@ export async function registerRoutes(
   });
 
   // === User Profile Update ===
-  app.patch("/api/user/profile", isAuthenticated, async (req: any, res) => {
+  const handleProfilePatch = async (req: any, res: any) => {
     try {
-      const { firstName, lastName, bio } = req.body;
-      const userId = req.user.claims.sub;
+      const { firstName, lastName, bio, phoneNumber, birthDate, isPhoneNumberPublic, isBioPublic, profileImageUrl } = req.body;
+      const userId = req.user?.claims?.sub || req.body.userId;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
       const { authStorage } = await import("./replit_integrations/auth/storage");
       const updated = await authStorage.upsertUser({
         id: userId,
-        firstName: firstName?.trim() || undefined,
-        lastName: lastName?.trim() || undefined,
-        bio: bio?.trim() || undefined,
+        firstName: firstName !== undefined ? firstName?.trim() : undefined,
+        lastName: lastName !== undefined ? lastName?.trim() : undefined,
+        bio: bio !== undefined ? bio?.trim() : undefined,
+        phoneNumber: phoneNumber !== undefined ? phoneNumber?.trim() : undefined,
+        birthDate: birthDate ? new Date(birthDate) : undefined,
+        isPhoneNumberPublic: isPhoneNumberPublic !== undefined ? Boolean(isPhoneNumberPublic) : undefined,
+        isBioPublic: isBioPublic !== undefined ? Boolean(isBioPublic) : undefined,
+        profileImageUrl: profileImageUrl !== undefined ? profileImageUrl : undefined,
       });
+      await storage.updateUserStatus(userId, true);
       res.json(updated);
     } catch (err) {
       console.error("Profile update error:", err);
       res.status(500).json({ message: "Failed to update profile" });
     }
-  });
+  };
+
+  app.patch("/api/user/profile", isAuthenticated, handleProfilePatch);
+  app.patch("/api/user", isAuthenticated, handleProfilePatch);
 
   app.get("/api/messages/recent", isAuthenticated, async (req: any, res) => {
     const currentUserId = req.user.claims.sub;

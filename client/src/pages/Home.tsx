@@ -23,7 +23,6 @@ import {
 
 import { cn } from "@/lib/utils";
 import logoImg from "@/assets/logo.png";
-import { QueryErrorState } from "@/components/QueryErrorState";
 
 type TabType = "all" | "unread" | "favorites" | "groups";
 
@@ -64,7 +63,7 @@ const MUTED_IDS_KEY = "zenix-muted-chats";
 
 export default function Home() {
   const { data: currentUser } = useCurrentUser();
-  const { data: users, isLoading, isError, refetch, isFetching } = useUsers();
+  const { data: users, isLoading } = useUsers();
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<TabType>("all");
   const [showSearch, setShowSearch] = useState(false);
@@ -344,14 +343,6 @@ export default function Home() {
             <div className="flex justify-center py-10">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
-          ) : isError ? (
-            <QueryErrorState
-              title="Couldn't load your chats"
-              description="Your conversations couldn't be loaded. Check your connection and try again."
-              onRetry={refetch}
-              isRetrying={isFetching}
-              className="mx-4 my-8"
-            />
           ) : sortedUsers.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center px-8 opacity-60">
               <MessageCircle className="w-16 h-16 text-muted-foreground mb-4" />

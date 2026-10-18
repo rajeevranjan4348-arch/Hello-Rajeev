@@ -55,7 +55,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { ContactInfo } from "@/components/ContactInfo";
-import { QueryErrorState } from "@/components/QueryErrorState";
 
 export default function Chat() {
   const [, params] = useRoute("/chat/:id");
@@ -63,7 +62,7 @@ export default function Chat() {
 
   const { data: user } = useUser(userId);
   const { data: currentUser } = useCurrentUser();
-  const { data: messages, isLoading, isError, refetch, isFetching } = useMessages(userId);
+  const { data: messages, isLoading } = useMessages(userId);
   const { mutate: sendMessage, isPending: isSending } = useSendMessage();
   const { toast } = useToast();
 
@@ -535,31 +534,24 @@ export default function Chat() {
             <div className="flex justify-center py-10">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
-          ) : isError ? (
-            <QueryErrorState
-              title="Couldn't load messages"
-              description="This conversation couldn't be loaded. Check your connection and try again."
-              onRetry={refetch}
-              isRetrying={isFetching}
-              className="mx-4 my-8"
-            />
           ) : messages?.length === 0 ? (
             <div className="text-center py-20 opacity-50">
               <p className="text-sm">No messages yet. Say hello!</p>
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              {(messages || []).map((msg, idx) => {
+              {((messages || []) as any[]).map((msg, idx, arr) => {
                 const isMe = msg.senderId === currentUser.id;
+                const prevMsg = idx > 0 ? arr[idx - 1] : null;
                 const showAvatar =
                   !isMe &&
-                  (idx === 0 || messages[idx - 1].senderId !== msg.senderId);
+                  (!prevMsg || prevMsg.senderId !== msg.senderId);
                 const isEditing = editingId === msg.id;
                 const currentOffset = swipeOffset[msg.id] || 0;
 
                 // Date separator logic
-                const msgDate = new Date(msg.timestamp || Date.now());
-                const prevMsgDate = idx > 0 ? new Date(messages[idx - 1].timestamp || Date.now()) : null;
+                const msgDate = new Date(msg.createdAt || msg.timestamp || Date.now());
+                const prevMsgDate = prevMsg ? new Date(prevMsg.createdAt || prevMsg.timestamp || Date.now()) : null;
                 const isNewDay = !prevMsgDate || msgDate.toDateString() !== prevMsgDate.toDateString();
 
                 return (
