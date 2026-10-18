@@ -1,10 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { User } from "@shared/models/auth";
-import { getAuthHeaders, clearStoredUserId } from "@/lib/auth-utils";
 
 async function fetchUser(): Promise<User | null> {
   const response = await fetch("/api/auth/user", {
-    headers: getAuthHeaders(),
     credentials: "include",
   });
 
@@ -20,12 +18,10 @@ async function fetchUser(): Promise<User | null> {
 }
 
 async function logout(): Promise<void> {
-  clearStoredUserId();
   // Try OTP logout first (session-based), then fall back to Replit OIDC logout
   try {
     const res = await fetch("/api/otp/logout", {
       method: "POST",
-      headers: getAuthHeaders(),
       credentials: "include",
     });
     if (res.ok) {
@@ -40,7 +36,12 @@ async function logout(): Promise<void> {
 
 export function useAuth() {
   const queryClient = useQueryClient();
-  const { data: user, isLoading } = useQuery<User | null>({
+  const {
+    data: user,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery<User | null>({
     queryKey: ["/api/auth/user"],
     queryFn: fetchUser,
     retry: false,
@@ -57,6 +58,8 @@ export function useAuth() {
   return {
     user,
     isLoading,
+    isError,
+    refetch,
     isAuthenticated: !!user,
     logout: logoutMutation.mutate,
     isLoggingOut: logoutMutation.isPending,

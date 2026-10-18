@@ -5,10 +5,11 @@ import { Link } from "wouter";
 import { Loader2, Search } from "lucide-react";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
+import { QueryErrorState } from "@/components/QueryErrorState";
 
 export default function People() {
   const [searchTerm, setSearchTerm] = useState("");
-  const { data: users, isLoading } = useUsers(searchTerm);
+  const { data: users, isLoading, isError, refetch, isFetching } = useUsers(searchTerm);
 
   return (
     <Layout>
@@ -37,6 +38,14 @@ export default function People() {
               <Loader2 className="w-12 h-12 animate-spin text-primary" />
               <p className="text-muted-foreground font-medium animate-pulse">Finding connections...</p>
             </div>
+          ) : isError ? (
+            <QueryErrorState
+              title="Couldn't load people"
+              description="We couldn't find people right now. Check your connection and try again."
+              onRetry={refetch}
+              isRetrying={isFetching}
+              className="col-span-full"
+            />
           ) : users?.length === 0 ? (
             <div className="col-span-full py-20 text-center space-y-4">
               <div className="w-20 h-20 bg-muted rounded-full mx-auto flex items-center justify-center">

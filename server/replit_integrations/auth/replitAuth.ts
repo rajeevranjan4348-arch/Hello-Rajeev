@@ -6,7 +6,7 @@ import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
-import memorystore from "memorystore";
+import createMemoryStore from "memorystore";
 import { authStorage } from "./storage";
 
 const getOidcConfig = memoize(
@@ -21,7 +21,8 @@ const getOidcConfig = memoize(
 
 export function getSession() {
   const sessionTtl = 30 * 24 * 60 * 60 * 1000; // 30 days
-  let sessionStore: any;
+  let sessionStore: session.Store | undefined;
+
   if (process.env.DATABASE_URL) {
     try {
       const pgStore = connectPg(session);
@@ -31,30 +32,29 @@ export function getSession() {
         ttl: sessionTtl / 1000, // ttl is in seconds for connect-pg-simple
         tableName: "sessions",
       });
-    } catch (e) {
-      console.warn("[Auth] Failed to initialize pg session store, using MemoryStore:", e);
+    } catch (err) {
+      console.warn("[Auth] Failed to initialize pg session store, using MemoryStore:", err);
     }
   }
 
   if (!sessionStore) {
-    const MemoryStore = memorystore(session);
+    const MemoryStore = createMemoryStore(session);
     sessionStore = new MemoryStore({
-      checkPeriod: 86400000,
+      checkPeriod: 86400000, // prune expired entries every 24h
     });
   }
 
   return session({
-    secret: process.env.SESSION_SECRET || "zenix-secure-session-secret-key-2026",
+    secret: process.env.SESSION_SECRET || "zenix_session_secret_key_2026",
     store: sessionStore,
-    resave: true, // Force session to be saved back to the session store
+    resave: false,
     saveUninitialized: false,
-    rolling: true, // Force a session identifier cookie to be set on every response
-    proxy: true,
+    rolling: true,
     cookie: {
       httpOnly: true,
-      secure: "auto",
+      secure: false, // Ensures session cookies work in dev preview iframes
       maxAge: sessionTtl,
-      sameSite: "none",
+      sameSite: "lax",
     },
   });
 }
@@ -89,137 +89,92 @@ export async function setupAuth(app: Express) {
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
   if (!process.env.REPL_ID) {
-    console.log("[Auth] REPL_ID not set — Replit OIDC skipped. Phone/OTP authentication active.");
+    console.log("[Auth] REPL_ID not provided — phone OTP authentication is active.");
     return;
   }
 
-  let config: any;
   try {
-    config = await getOidcConfig();
-  } catch (err) {
-    console.warn("[Auth] Replit OIDC discovery failed:", err);
-    return;
-  }
+    const config = await getOidcConfig();
 
-  const verify: VerifyFunction = async (
-    tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
-    verified: passport.AuthenticateCallback
-  ) => {
-    const user = {};
-    updateUserSession(user, tokens);
-    await upsertUser(tokens.claims());
-    verified(null, user);
-  };
+    const verify: VerifyFunction = async (
+      tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
+      verified: passport.AuthenticateCallback
+    ) => {
+      const user = {};
+      updateUserSession(user, tokens);
+      await upsertUser(tokens.claims());
+      verified(null, user);
+    };
 
-  // Keep track of registered strategies
-  const registeredStrategies = new Set<string>();
+    // Keep track of registered strategies
+    const registeredStrategies = new Set<string>();
 
-  // Helper function to ensure strategy exists for a domain
-  const ensureStrategy = (domain: string) => {
-    const strategyName = `replitauth:${domain}`;
-    if (!registeredStrategies.has(strategyName)) {
-      const strategy = new Strategy(
-        {
-          name: strategyName,
-          config,
-          scope: "openid email profile offline_access",
-          callbackURL: `https://${domain}/api/callback`,
-        },
-        verify
-      );
-      passport.use(strategy);
-      registeredStrategies.add(strategyName);
-    }
-  };
+    // Helper function to ensure strategy exists for a domain
+    const ensureStrategy = (domain: string) => {
+      const strategyName = `replitauth:${domain}`;
+      if (!registeredStrategies.has(strategyName)) {
+        const strategy = new Strategy(
+          {
+            name: strategyName,
+            config,
+            scope: "openid email profile offline_access",
+            callbackURL: `https://${domain}/api/callback`,
+          },
+          verify
+        );
+        passport.use(strategy);
+        registeredStrategies.add(strategyName);
+      }
+    };
 
-
-  app.get("/api/login", (req, res, next) => {
-    ensureStrategy(req.hostname);
-    passport.authenticate(`replitauth:${req.hostname}`, {
-      prompt: "login consent",
-      scope: ["openid", "email", "profile", "offline_access"],
-    })(req, res, next);
-  });
-
-  app.get("/api/callback", (req, res, next) => {
-    ensureStrategy(req.hostname);
-    passport.authenticate(`replitauth:${req.hostname}`, {
-      successReturnToOrRedirect: "/",
-      failureRedirect: "/api/login",
-    })(req, res, next);
-  });
-
-  app.get("/api/logout", (req, res) => {
-    req.logout(() => {
-      res.redirect(
-        client.buildEndSessionUrl(config, {
-          client_id: process.env.REPL_ID!,
-          post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
-        }).href
-      );
+    app.get("/api/login", (req, res, next) => {
+      ensureStrategy(req.hostname);
+      passport.authenticate(`replitauth:${req.hostname}`, {
+        prompt: "login consent",
+        scope: ["openid", "email", "profile", "offline_access"],
+      })(req, res, next);
     });
-  });
+
+    app.get("/api/callback", (req, res, next) => {
+      ensureStrategy(req.hostname);
+      passport.authenticate(`replitauth:${req.hostname}`, {
+        successReturnToOrRedirect: "/",
+        failureRedirect: "/api/login",
+      })(req, res, next);
+    });
+
+    app.get("/api/logout", (req, res) => {
+      req.logout(() => {
+        res.redirect(
+          client.buildEndSessionUrl(config, {
+            client_id: process.env.REPL_ID!,
+            post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
+          }).href
+        );
+      });
+    });
+  } catch (err) {
+    console.warn("[Auth] Failed to initialize Replit OIDC:", err);
+  }
 }
 
 export const isAuthenticated: RequestHandler = async (req: any, res, next) => {
-  // Support Header-based auth (for iframes where 3rd-party cookies are blocked)
-  const authHeader = req.headers.authorization;
-  const headerUserId =
-    (authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null) ||
-    req.headers["x-user-id"];
-
-  if (headerUserId) {
-    const user = await authStorage.getUser(String(headerUserId));
-    if (user) {
-      req.user = { claims: { sub: user.id }, expires_at: Infinity };
-      if (req.session) {
-        req.session.otpUserId = user.id;
-      }
-      return next();
-    }
-  }
-
   // Support OTP-based phone auth (session-stored userId)
   if (req.session?.otpUserId) {
     req.user = { claims: { sub: req.session.otpUserId }, expires_at: Infinity };
-    // Extend session on every request
-    req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000;
+    if (req.session.cookie) {
+      req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000;
+    }
     return next();
-  }
-
-  // Fallback: Check if request body contains userId or phoneNumberFallback
-  if (req.body?.userId) {
-    const user = await authStorage.getUser(String(req.body.userId));
-    if (user) {
-      req.user = { claims: { sub: user.id }, expires_at: Infinity };
-      if (req.session) {
-        req.session.otpUserId = user.id;
-      }
-      return next();
-    }
-  }
-
-  if (req.body?.phoneNumberFallback || req.body?.phoneNumber) {
-    const phone = String(req.body.phoneNumberFallback || req.body.phoneNumber);
-    const { storage } = await import("../../storage");
-    const user = await storage.getUserByPhone(phone);
-    if (user) {
-      req.user = { claims: { sub: user.id }, expires_at: Infinity };
-      if (req.session) {
-        req.session.otpUserId = user.id;
-      }
-      return next();
-    }
   }
 
   const user = req.user as any;
 
-  if (!req.isAuthenticated() || !user?.expires_at) {
+  if (!req.isAuthenticated || !req.isAuthenticated() || !user?.expires_at) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
-  // Extend session on every authenticated request to prevent timeout
-  if (req.session) {
+  if (req.session?.cookie) {
     req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // Reset to 30 days
   }
 

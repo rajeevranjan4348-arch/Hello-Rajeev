@@ -1,6 +1,8 @@
 {
-  "name": "Zenix - Secure Messaging & Calls",
-  "description": "A modern real-time messaging and calling web app featuring end-to-end chat, voice/video calls, and contact management.",
-  "prompt": "This app was imported from GitHub repository rajeevranjan4348-arch/Hello-Rajeev.",
-  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "name": "Zenix - Real-time Chat & Calling",
+  "description": "Real-time chat, messaging, voice and video calling application with contacts, status, and privacy settings.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

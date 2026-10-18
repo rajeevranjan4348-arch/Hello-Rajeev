@@ -2,17 +2,18 @@ import { db } from "./db";
 import { eq, or, and, desc, ne, like, gt, isNull } from "drizzle-orm";
 import {
   users, messages, calls, contacts, otps,
-  type User,
+  type User, type UpsertUser,
   type Message, type InsertMessage,
   type Call, type InsertCall
 } from "@shared/schema";
-import { authStorage, memUsers } from "./replit_integrations/auth/storage";
+import { randomUUID } from "crypto";
 
 export interface IStorage {
   // Auth & User methods
   getUser(id: string): Promise<User | undefined>;
   getUserByPhone(phoneNumber: string): Promise<User | undefined>;
   upsertUserByPhone(phoneNumber: string, name?: string): Promise<User>;
+  upsertUser(user: UpsertUser): Promise<User>;
   getUsers(currentUserId: string): Promise<(User & { lastMessage?: Message })[]>;
   searchUsers(query: string): Promise<User[]>;
   updateUserStatus(userId: string, isOnline: boolean): Promise<void>;
@@ -30,24 +31,375 @@ export interface IStorage {
   createCall(call: InsertCall): Promise<Call>;
   getCalls(userId: string): Promise<Call[]>;
 
+  // Contact methods
+  isFollowing(userId: string, contactId: string): Promise<boolean>;
+  followUser(userId: string, contactId: string): Promise<void>;
+  unfollowUser(userId: string, contactId: string): Promise<void>;
+
   // OTP methods
   createOTP(phoneNumber: string, code: string): Promise<void>;
   verifyOTP(phoneNumber: string, code: string): Promise<boolean>;
 
   getRecentMessages(userId: string): Promise<Message[]>;
+}
 
-  // Contact methods
-  isFollowing(userId: string, contactId: string): Promise<boolean>;
-  followUser(userId: string, contactId: string): Promise<void>;
-  unfollowUser(userId: string, contactId: string): Promise<void>;
+export class MemStorage implements IStorage {
+  private usersMap = new Map<string, User>();
+  private messagesList: Message[] = [];
+  private callsList: Call[] = [];
+  private contactsList: { id: number; userId: string; contactId: string; createdAt: Date }[] = [];
+  private otpsList: { id: number; phoneNumber: string; code: string; expiresAt: Date; isUsed: string; createdAt: Date }[] = [];
+  private currentMessageId = 1;
+  private currentCallId = 1;
+  private currentContactId = 1;
+  private currentOtpId = 1;
+
+  constructor() {
+    this.seedInitialData();
+  }
+
+  private seedInitialData() {
+    const demoUsers: User[] = [
+      {
+        id: "demo-user-aarav",
+        email: "aarav@zenix.chat",
+        firstName: "Aarav",
+        lastName: "Sharma",
+        phoneNumber: "+919876543210",
+        profileImageUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+        bio: "Hey there! I am using Zenix 🚀",
+        birthDate: null,
+        isPhoneNumberPublic: true,
+        isBioPublic: true,
+        isOnline: true,
+        lastSeen: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: "demo-user-priya",
+        email: "priya@zenix.chat",
+        firstName: "Priya",
+        lastName: "Patel",
+        phoneNumber: "+919123456789",
+        profileImageUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
+        bio: "Designing digital experiences ✨",
+        birthDate: null,
+        isPhoneNumberPublic: false,
+        isBioPublic: true,
+        isOnline: true,
+        lastSeen: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: "demo-user-rohan",
+        email: "rohan@zenix.chat",
+        firstName: "Rohan",
+        lastName: "Verma",
+        phoneNumber: "+919988776655",
+        profileImageUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+        bio: "Available for voice & video calls 📞",
+        birthDate: null,
+        isPhoneNumberPublic: false,
+        isBioPublic: true,
+        isOnline: false,
+        lastSeen: new Date(Date.now() - 3600000),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: "demo-user-rajeev",
+        email: "rajeev@zenix.chat",
+        firstName: "Rajeev",
+        lastName: "Ranjan",
+        phoneNumber: "+919811223344",
+        profileImageUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
+        bio: "Welcome to Zenix Messenger! 👋",
+        birthDate: null,
+        isPhoneNumberPublic: true,
+        isBioPublic: true,
+        isOnline: true,
+        lastSeen: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ];
+
+    for (const u of demoUsers) {
+      this.usersMap.set(u.id, u);
+    }
+
+    // Seed some initial welcome messages between Rajeev and Aarav
+    this.messagesList.push({
+      id: this.currentMessageId++,
+      senderId: "demo-user-rajeev",
+      receiverId: "demo-user-aarav",
+      groupId: null,
+      content: "Welcome to Zenix! Ready for real-time messaging.",
+      isEdited: "false",
+      isDeleted: "false",
+      type: "text",
+      readAt: new Date(),
+      expiresAt: null,
+      createdAt: new Date(Date.now() - 7200000),
+    });
+  }
+
+  async getUser(id: string): Promise<User | undefined> {
+    return this.usersMap.get(id);
+  }
+
+  async getUserByPhone(phoneNumber: string): Promise<User | undefined> {
+    for (const user of Array.from(this.usersMap.values())) {
+      if (user.phoneNumber === phoneNumber) return user;
+    }
+    return undefined;
+  }
+
+  async upsertUserByPhone(phoneNumber: string, name?: string): Promise<User> {
+    const existing = await this.getUserByPhone(phoneNumber);
+    if (existing) {
+      if (name && (!existing.firstName || existing.firstName === "User")) {
+        const parts = name.trim().split(" ");
+        existing.firstName = parts[0] || "User";
+        existing.lastName = parts.slice(1).join(" ") || "";
+        existing.updatedAt = new Date();
+        this.usersMap.set(existing.id, existing);
+      }
+      return existing;
+    }
+    const firstName = name?.split(" ")[0] || "User";
+    const lastName = name?.split(" ").slice(1).join(" ") || phoneNumber.slice(-4);
+    const newUser: User = {
+      id: randomUUID(),
+      email: null,
+      firstName,
+      lastName,
+      phoneNumber,
+      profileImageUrl: null,
+      bio: "Hey there! I am using Zenix.",
+      birthDate: null,
+      isPhoneNumberPublic: false,
+      isBioPublic: true,
+      isOnline: true,
+      lastSeen: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.usersMap.set(newUser.id, newUser);
+    return newUser;
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const id = userData.id || randomUUID();
+    const existing = this.usersMap.get(id);
+    const updatedUser: User = {
+      id,
+      email: userData.email ?? existing?.email ?? null,
+      firstName: userData.firstName ?? existing?.firstName ?? "User",
+      lastName: userData.lastName ?? existing?.lastName ?? "",
+      phoneNumber: userData.phoneNumber ?? existing?.phoneNumber ?? null,
+      profileImageUrl: userData.profileImageUrl ?? existing?.profileImageUrl ?? null,
+      bio: userData.bio ?? existing?.bio ?? null,
+      birthDate: userData.birthDate ?? existing?.birthDate ?? null,
+      isPhoneNumberPublic: userData.isPhoneNumberPublic ?? existing?.isPhoneNumberPublic ?? false,
+      isBioPublic: userData.isBioPublic ?? existing?.isBioPublic ?? true,
+      isOnline: userData.isOnline ?? existing?.isOnline ?? false,
+      lastSeen: userData.lastSeen ?? existing?.lastSeen ?? new Date(),
+      createdAt: existing?.createdAt ?? new Date(),
+      updatedAt: new Date(),
+    };
+    this.usersMap.set(id, updatedUser);
+    return updatedUser;
+  }
+
+  async getUsers(currentUserId: string): Promise<(User & { lastMessage?: Message })[]> {
+    const allUsers = Array.from(this.usersMap.values()).filter((u) => u.id !== currentUserId);
+
+    return allUsers.map((user) => {
+      const convoMessages = this.messagesList.filter(
+        (m) =>
+          (m.senderId === currentUserId && m.receiverId === user.id) ||
+          (m.senderId === user.id && m.receiverId === currentUserId)
+      );
+      const lastMessage = convoMessages[convoMessages.length - 1];
+      return { ...user, lastMessage };
+    });
+  }
+
+  async searchUsers(query: string): Promise<User[]> {
+    const q = query.toLowerCase();
+    return Array.from(this.usersMap.values()).filter(
+      (u) =>
+        (u.firstName && u.firstName.toLowerCase().includes(q)) ||
+        (u.lastName && u.lastName.toLowerCase().includes(q)) ||
+        (u.email && u.email.toLowerCase().includes(q)) ||
+        (u.phoneNumber && u.phoneNumber.includes(q))
+    );
+  }
+
+  async updateUserStatus(userId: string, isOnline: boolean): Promise<void> {
+    const user = this.usersMap.get(userId);
+    if (user) {
+      user.isOnline = isOnline;
+      user.lastSeen = new Date();
+      this.usersMap.set(userId, user);
+    }
+  }
+
+  async getMessages(userId1: string, userId2: string): Promise<Message[]> {
+    return this.messagesList
+      .filter(
+        (m) =>
+          !m.groupId &&
+          ((m.senderId === userId1 && m.receiverId === userId2) ||
+            (m.senderId === userId2 && m.receiverId === userId1))
+      )
+      .sort((a, b) => (a.createdAt?.getTime() || 0) - (b.createdAt?.getTime() || 0));
+  }
+
+  async createMessage(message: InsertMessage): Promise<Message> {
+    const newMessage: Message = {
+      id: this.currentMessageId++,
+      senderId: message.senderId,
+      receiverId: message.receiverId ?? null,
+      groupId: message.groupId ?? null,
+      content: message.content,
+      isEdited: "false",
+      isDeleted: "false",
+      type: message.type || "text",
+      readAt: null,
+      expiresAt: null,
+      createdAt: new Date(),
+    };
+    this.messagesList.push(newMessage);
+    return newMessage;
+  }
+
+  async updateMessage(id: number, content: string): Promise<Message> {
+    const msg = this.messagesList.find((m) => m.id === id);
+    if (!msg) throw new Error("Message not found");
+    msg.content = content;
+    msg.isEdited = "true";
+    return msg;
+  }
+
+  async deleteMessage(id: number): Promise<Message> {
+    const msg = this.messagesList.find((m) => m.id === id);
+    if (!msg) throw new Error("Message not found");
+    msg.isDeleted = "true";
+    msg.content = "This message was deleted";
+    return msg;
+  }
+
+  async clearChat(userId: string, partnerId: string): Promise<void> {
+    this.messagesList = this.messagesList.filter(
+      (m) =>
+        !(
+          (m.senderId === userId && m.receiverId === partnerId) ||
+          (m.senderId === partnerId && m.receiverId === userId)
+        )
+    );
+  }
+
+  async deleteChat(userId: string, partnerId: string): Promise<void> {
+    await this.clearChat(userId, partnerId);
+  }
+
+  async markMessagesAsRead(senderId: string, receiverId: string): Promise<void> {
+    const now = new Date();
+    for (const msg of this.messagesList) {
+      if (msg.senderId === senderId && msg.receiverId === receiverId && !msg.readAt) {
+        msg.readAt = now;
+      }
+    }
+  }
+
+  async createCall(call: InsertCall): Promise<Call> {
+    const newCall: Call = {
+      id: this.currentCallId++,
+      callerId: call.callerId,
+      calleeId: call.calleeId,
+      type: call.type ?? "video",
+      status: call.status ?? "missed",
+      startedAt: new Date(),
+      endedAt: null,
+    };
+    this.callsList.unshift(newCall);
+    return newCall;
+  }
+
+  async getCalls(userId: string): Promise<Call[]> {
+    return this.callsList
+      .filter((c) => c.callerId === userId || c.calleeId === userId)
+      .sort((a, b) => (b.startedAt?.getTime() || 0) - (a.startedAt?.getTime() || 0));
+  }
+
+  async createOTP(phoneNumber: string, code: string): Promise<void> {
+    const expiresAt = new Date(Date.now() + 2 * 60 * 1000); // 2 minutes
+    this.otpsList.push({
+      id: this.currentOtpId++,
+      phoneNumber,
+      code,
+      expiresAt,
+      isUsed: "false",
+      createdAt: new Date(),
+    });
+  }
+
+  async verifyOTP(phoneNumber: string, code: string): Promise<boolean> {
+    const now = new Date();
+    const otp = this.otpsList
+      .slice()
+      .reverse()
+      .find((o) => o.phoneNumber === phoneNumber && o.code === code && o.isUsed === "false" && o.expiresAt > now);
+
+    if (otp) {
+      otp.isUsed = "true";
+      return true;
+    }
+    return false;
+  }
+
+  async getRecentMessages(userId: string): Promise<Message[]> {
+    return this.messagesList
+      .filter((m) => m.receiverId === userId)
+      .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0))
+      .slice(0, 10);
+  }
+
+  async isFollowing(userId: string, contactId: string): Promise<boolean> {
+    return this.contactsList.some((c) => c.userId === userId && c.contactId === contactId);
+  }
+
+  async followUser(userId: string, contactId: string): Promise<void> {
+    if (!await this.isFollowing(userId, contactId)) {
+      this.contactsList.push({
+        id: this.currentContactId++,
+        userId,
+        contactId,
+        createdAt: new Date(),
+      });
+    }
+  }
+
+  async unfollowUser(userId: string, contactId: string): Promise<void> {
+    this.contactsList = this.contactsList.filter(
+      (c) => !(c.userId === userId && c.contactId === contactId)
+    );
+  }
 }
 
 export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
-    return authStorage.getUser(id);
+    if (!db) return undefined;
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async getUserByPhone(phoneNumber: string): Promise<User | undefined> {
+    if (!db) return undefined;
     const [user] = await db.select().from(users).where(eq(users.phoneNumber, phoneNumber));
     return user;
   }
@@ -65,10 +417,25 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
+  }
+
   async getUsers(currentUserId: string): Promise<(User & { lastMessage?: Message })[]> {
+    if (!db) return [];
     const allUsers = await db.select().from(users).where(ne(users.id, currentUserId));
     
-    // Add last message for each user
     const usersWithMessages = await Promise.all(allUsers.map(async (user: User) => {
       const [lastMessage] = await db.select()
         .from(messages)
@@ -88,6 +455,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async searchUsers(query: string): Promise<User[]> {
+    if (!db) return [];
     return await db.select().from(users).where(
       or(
         like(users.firstName, `%${query}%`),
@@ -99,6 +467,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUserStatus(userId: string, isOnline: boolean): Promise<void> {
+    if (!db) return;
     await db.update(users)
       .set({ 
         isOnline, 
@@ -108,6 +477,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMessages(userId1: string, userId2: string): Promise<Message[]> {
+    if (!db) return [];
     return await db.select().from(messages).where(
       and(
         or(
@@ -141,6 +511,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async clearChat(userId: string, partnerId: string): Promise<void> {
+    if (!db) return;
     await db.delete(messages).where(
       or(
         and(eq(messages.senderId, userId), eq(messages.receiverId, partnerId)),
@@ -154,6 +525,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async markMessagesAsRead(senderId: string, receiverId: string): Promise<void> {
+    if (!db) return;
     await db.update(messages)
       .set({ readAt: new Date() })
       .where(
@@ -171,12 +543,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCalls(userId: string): Promise<Call[]> {
+    if (!db) return [];
     return await db.select().from(calls).where(
       or(eq(calls.callerId, userId), eq(calls.calleeId, userId))
     ).orderBy(desc(calls.startedAt));
   }
 
   async createOTP(phoneNumber: string, code: string): Promise<void> {
+    if (!db) return;
     const expiresAt = new Date(Date.now() + 2 * 60 * 1000); // 2 minutes
     await db.insert(otps).values({
       phoneNumber,
@@ -186,6 +560,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async verifyOTP(phoneNumber: string, code: string): Promise<boolean> {
+    if (!db) return false;
     const [otp] = await db.select()
       .from(otps)
       .where(
@@ -208,6 +583,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRecentMessages(userId: string): Promise<Message[]> {
+    if (!db) return [];
     return await db.select()
       .from(messages)
       .where(eq(messages.receiverId, userId))
@@ -216,6 +592,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async isFollowing(userId: string, contactId: string): Promise<boolean> {
+    if (!db) return false;
     const [follow] = await db.select().from(contacts).where(
       and(eq(contacts.userId, userId), eq(contacts.contactId, contactId))
     );
@@ -223,328 +600,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async followUser(userId: string, contactId: string): Promise<void> {
+    if (!db) return;
     await db.insert(contacts).values({ userId, contactId });
   }
 
   async unfollowUser(userId: string, contactId: string): Promise<void> {
+    if (!db) return;
     await db.delete(contacts).where(
       and(eq(contacts.userId, userId), eq(contacts.contactId, contactId))
     );
   }
 }
 
-export class MemStorage implements IStorage {
-  private users = memUsers;
-  private messages = new Map<number, Message>();
-  private messageIdCounter = 1;
-  private calls = new Map<number, Call>();
-  private callIdCounter = 1;
-  private contacts = new Set<string>();
-  private otps: { id: number; phoneNumber: string; code: string; expiresAt: Date; isUsed: string }[] = [];
-  private otpIdCounter = 1;
-
-  constructor() {
-    this.seedDemoData();
-  }
-
-  private seedDemoData() {
-    if (this.users.size === 0) {
-      const demoUsers: User[] = [
-        {
-          id: "sarah-connor",
-          email: "sarah@zenix.chat",
-          firstName: "Sarah",
-          lastName: "Connor",
-          phoneNumber: "+14155552671",
-          profileImageUrl: null,
-          bio: "Cybersecurity analyst & privacy advocate.",
-          birthDate: null,
-          isPhoneNumberPublic: true,
-          isBioPublic: true,
-          isOnline: true,
-          lastSeen: new Date(),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          id: "alex-rivera",
-          email: "alex@zenix.chat",
-          firstName: "Alex",
-          lastName: "Rivera",
-          phoneNumber: "+14155552672",
-          profileImageUrl: null,
-          bio: "Product designer & sound enthusiast.",
-          birthDate: null,
-          isPhoneNumberPublic: true,
-          isBioPublic: true,
-          isOnline: false,
-          lastSeen: new Date(Date.now() - 3600000),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          id: "zenix-support",
-          email: "support@zenix.chat",
-          firstName: "Zenix",
-          lastName: "Assistant",
-          phoneNumber: "+14155552673",
-          profileImageUrl: null,
-          bio: "Official Zenix Welcome Bot.",
-          birthDate: null,
-          isPhoneNumberPublic: true,
-          isBioPublic: true,
-          isOnline: true,
-          lastSeen: new Date(),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ];
-
-      for (const u of demoUsers) {
-        this.users.set(u.id, u);
-      }
-    }
-  }
-
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByPhone(phoneNumber: string): Promise<User | undefined> {
-    for (const user of Array.from(this.users.values())) {
-      if (user.phoneNumber === phoneNumber) {
-        return user;
-      }
-    }
-    return undefined;
-  }
-
-  async upsertUserByPhone(phoneNumber: string, name?: string): Promise<User> {
-    const existing = await this.getUserByPhone(phoneNumber);
-    if (existing) return existing;
-
-    const id = `user-${Date.now()}`;
-    const firstName = name?.split(" ")[0] || "User";
-    const lastName = name?.split(" ").slice(1).join(" ") || phoneNumber.slice(-4);
-    const user: User = {
-      id,
-      email: null,
-      firstName,
-      lastName,
-      phoneNumber,
-      profileImageUrl: null,
-      bio: "Hey there! I am using Zenix.",
-      birthDate: null,
-      isPhoneNumberPublic: true,
-      isBioPublic: true,
-      isOnline: true,
-      lastSeen: new Date(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    this.users.set(id, user);
-
-    // Add welcome message from Zenix Assistant
-    await this.createMessage({
-      senderId: "zenix-support",
-      receiverId: id,
-      content: "Welcome to Zenix! Fast, private, and secure messaging at your fingertips.",
-      type: "text",
-    });
-
-    return user;
-  }
-
-  async getUsers(currentUserId: string): Promise<(User & { lastMessage?: Message })[]> {
-    const allUsers = Array.from(this.users.values()).filter((u) => u.id !== currentUserId);
-
-    return allUsers.map((user) => {
-      // Find latest message between currentUserId and user.id
-      const userMsgs = Array.from(this.messages.values()).filter(
-        (m) =>
-          (m.senderId === currentUserId && m.receiverId === user.id) ||
-          (m.senderId === user.id && m.receiverId === currentUserId)
-      );
-
-      userMsgs.sort((a, b) => {
-        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return timeB - timeA;
-      });
-
-      return {
-        ...user,
-        lastMessage: userMsgs[0],
-      };
-    });
-  }
-
-  async searchUsers(query: string): Promise<User[]> {
-    const q = query.toLowerCase();
-    return Array.from(this.users.values()).filter(
-      (u) =>
-        (u.firstName && u.firstName.toLowerCase().includes(q)) ||
-        (u.lastName && u.lastName.toLowerCase().includes(q)) ||
-        (u.email && u.email.toLowerCase().includes(q)) ||
-        (u.phoneNumber && u.phoneNumber.includes(q))
-    );
-  }
-
-  async updateUserStatus(userId: string, isOnline: boolean): Promise<void> {
-    const user = this.users.get(userId);
-    if (user) {
-      user.isOnline = isOnline;
-      user.lastSeen = new Date();
-    }
-  }
-
-  async getMessages(userId1: string, userId2: string): Promise<Message[]> {
-    const msgs = Array.from(this.messages.values()).filter(
-      (m) =>
-        !m.groupId &&
-        ((m.senderId === userId1 && m.receiverId === userId2) ||
-          (m.senderId === userId2 && m.receiverId === userId1))
-    );
-
-    msgs.sort((a, b) => {
-      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return timeA - timeB;
-    });
-
-    return msgs;
-  }
-
-  async createMessage(message: InsertMessage): Promise<Message> {
-    const id = this.messageIdCounter++;
-    const newMsg: Message = {
-      id,
-      senderId: message.senderId,
-      receiverId: message.receiverId ?? null,
-      groupId: message.groupId ?? null,
-      content: message.content,
-      isEdited: "false",
-      isDeleted: "false",
-      type: message.type ?? "text",
-      readAt: null,
-      expiresAt: null,
-      createdAt: new Date(),
-    };
-    this.messages.set(id, newMsg);
-    return newMsg;
-  }
-
-  async updateMessage(id: number, content: string): Promise<Message> {
-    const msg = this.messages.get(id);
-    if (!msg) throw new Error("Message not found");
-    msg.content = content;
-    msg.isEdited = "true";
-    return msg;
-  }
-
-  async deleteMessage(id: number): Promise<Message> {
-    const msg = this.messages.get(id);
-    if (!msg) throw new Error("Message not found");
-    msg.isDeleted = "true";
-    msg.content = "This message was deleted";
-    return msg;
-  }
-
-  async clearChat(userId: string, partnerId: string): Promise<void> {
-    for (const [id, m] of Array.from(this.messages.entries())) {
-      if (
-        (m.senderId === userId && m.receiverId === partnerId) ||
-        (m.senderId === partnerId && m.receiverId === userId)
-      ) {
-        this.messages.delete(id);
-      }
-    }
-  }
-
-  async deleteChat(userId: string, partnerId: string): Promise<void> {
-    await this.clearChat(userId, partnerId);
-  }
-
-  async markMessagesAsRead(senderId: string, receiverId: string): Promise<void> {
-    for (const m of Array.from(this.messages.values())) {
-      if (m.senderId === senderId && m.receiverId === receiverId && !m.readAt) {
-        m.readAt = new Date();
-      }
-    }
-  }
-
-  async createCall(call: InsertCall): Promise<Call> {
-    const id = this.callIdCounter++;
-    const newCall: Call = {
-      id,
-      callerId: call.callerId,
-      calleeId: call.calleeId,
-      type: call.type ?? "video",
-      status: call.status ?? "started",
-      startedAt: new Date(),
-      endedAt: null,
-    };
-    this.calls.set(id, newCall);
-    return newCall;
-  }
-
-  async getCalls(userId: string): Promise<Call[]> {
-    const userCalls = Array.from(this.calls.values()).filter(
-      (c) => c.callerId === userId || c.calleeId === userId
-    );
-
-    userCalls.sort((a, b) => {
-      const timeA = a.startedAt ? new Date(a.startedAt).getTime() : 0;
-      const timeB = b.startedAt ? new Date(b.startedAt).getTime() : 0;
-      return timeB - timeA;
-    });
-
-    return userCalls;
-  }
-
-  async createOTP(phoneNumber: string, code: string): Promise<void> {
-    this.otps.push({
-      id: this.otpIdCounter++,
-      phoneNumber,
-      code,
-      expiresAt: new Date(Date.now() + 2 * 60 * 1000),
-      isUsed: "false",
-    });
-  }
-
-  async verifyOTP(phoneNumber: string, code: string): Promise<boolean> {
-    const now = new Date();
-    const otp = this.otps.find(
-      (o) => o.phoneNumber === phoneNumber && o.code === code && o.isUsed === "false" && o.expiresAt > now
-    );
-    if (otp) {
-      otp.isUsed = "true";
-      return true;
-    }
-    return false;
-  }
-
-  async getRecentMessages(userId: string): Promise<Message[]> {
-    const msgs = Array.from(this.messages.values()).filter((m) => m.receiverId === userId);
-    msgs.sort((a, b) => {
-      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return timeB - timeA;
-    });
-    return msgs.slice(0, 10);
-  }
-
-  async isFollowing(userId: string, contactId: string): Promise<boolean> {
-    return this.contacts.has(`${userId}:${contactId}`);
-  }
-
-  async followUser(userId: string, contactId: string): Promise<void> {
-    this.contacts.add(`${userId}:${contactId}`);
-  }
-
-  async unfollowUser(userId: string, contactId: string): Promise<void> {
-    this.contacts.delete(`${userId}:${contactId}`);
-  }
-}
-
-export const storage: IStorage = db ? new DatabaseStorage() : new MemStorage();
+export const memStorage = new MemStorage();
+export const storage: IStorage = db ? new DatabaseStorage() : memStorage;

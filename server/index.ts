@@ -65,8 +65,25 @@ io.on("connection", (socket) => {
     }
   });
 
+  // Track active typing recipient for cleanup on disconnect
+  let activeTypingTo: string | null = null;
+
+  socket.on("typing", ({ to, isTyping }: { to: string; isTyping: boolean }) => {
+    activeTypingTo = isTyping ? to : null;
+    const targetSocket = userSockets.get(to);
+    if (targetSocket) {
+      io.to(targetSocket).emit("user-typing", { from: userId, isTyping });
+    }
+  });
+
   socket.on("disconnect", () => {
     if (userId) {
+      if (activeTypingTo) {
+        const targetSocket = userSockets.get(activeTypingTo);
+        if (targetSocket) {
+          io.to(targetSocket).emit("user-typing", { from: userId, isTyping: false });
+        }
+      }
       userSockets.delete(userId);
       console.log(`User ${userId} disconnected`);
     }
@@ -148,18 +165,9 @@ app.use((req, res, next) => {
     await setupVite(httpServer, app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
+  // ALWAYS serve the app on port 3000 (0.0.0.0) in AI Studio
   const port = parseInt(process.env.PORT || "3000", 10);
-  httpServer.listen(
-    {
-      port,
-      host: "0.0.0.0",
-    },
-    () => {
-      log(`serving on port ${port}`);
-    },
-  );
+  httpServer.listen(port, "0.0.0.0", () => {
+    log(`serving on port ${port}`);
+  });
 })();

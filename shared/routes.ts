@@ -79,7 +79,7 @@ export const api = {
       method: 'POST' as const,
       path: '/api/calls',
       input: z.object({
-        calleeId: z.number(),
+        calleeId: z.string(),
         type: z.enum(['video', 'voice']),
       }),
       responses: {

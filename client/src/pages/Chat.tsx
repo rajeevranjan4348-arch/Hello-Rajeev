@@ -40,12 +40,14 @@ import {
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import RecordRTC from "recordrtc";
+import { io, Socket } from "socket.io-client";
 // @ts-ignore
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Message } from "@shared/schema";
+import { api } from "@shared/routes";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,6 +57,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { ContactInfo } from "@/components/ContactInfo";
+import { QueryErrorState } from "@/components/QueryErrorState";
 
 export default function Chat() {
   const [, params] = useRoute("/chat/:id");
@@ -62,7 +65,7 @@ export default function Chat() {
 
   const { data: user } = useUser(userId);
   const { data: currentUser } = useCurrentUser();
-  const { data: messages, isLoading } = useMessages(userId);
+  const { data: messages, isLoading, isError, refetch, isFetching } = useMessages(userId);
   const { mutate: sendMessage, isPending: isSending } = useSendMessage();
   const { toast } = useToast();
 
@@ -116,6 +119,54 @@ export default function Chat() {
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [isTypingVisible, setIsTypingVisible] = useState(false);
   const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const localTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const socketRef = useRef<Socket | null>(null);
+
+  // Real-time Socket.IO connection for typing indicators and live sync
+  useEffect(() => {
+    if (!currentUser || !userId) return;
+
+    const socket: Socket = io(window.location.origin, {
+      query: { userId: currentUser.id },
+    });
+    socketRef.current = socket;
+
+    socket.on("user-typing", ({ from, isTyping }: { from: string; isTyping: boolean }) => {
+      if (from === userId) {
+        setIsTypingVisible(isTyping);
+        if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+        if (isTyping) {
+          // Safety timeout if user abruptly stops or disconnects
+          typingTimerRef.current = setTimeout(() => {
+            setIsTypingVisible(false);
+          }, 3500);
+        }
+      }
+    });
+
+    socket.on("new-message", ({ senderId }: { senderId: string }) => {
+      if (senderId === userId) {
+        setIsTypingVisible(false);
+        if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+        queryClient.invalidateQueries({ queryKey: [api.messages.list.path, userId] });
+      }
+    });
+
+    return () => {
+      if (localTypingTimeoutRef.current) clearTimeout(localTypingTimeoutRef.current);
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+      socket.emit("typing", { to: userId, isTyping: false });
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [currentUser?.id, userId]);
+
+  useEffect(() => {
+    if (isTypingVisible) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [isTypingVisible]);
+
   const lastTapRef = useRef<{ id: number; time: number } | null>(null);
   const [doubleTapHeartId, setDoubleTapHeartId] = useState<number | null>(null);
 
@@ -148,12 +199,38 @@ export default function Chat() {
   const sendQuickReply = (text: string) => {
     if (!currentUser) return;
     if (window.navigator.vibrate) window.navigator.vibrate(20);
+    if (localTypingTimeoutRef.current) clearTimeout(localTypingTimeoutRef.current);
+    socketRef.current?.emit("typing", { to: userId, isTyping: false });
+    socketRef.current?.emit("send-message", { to: userId, content: text });
     sendMessage({
       senderId: currentUser.id,
       receiverId: userId,
       content: text,
       type: "text",
     });
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setContent(val);
+
+    if (!socketRef.current || !currentUser) return;
+
+    if (val.trim().length > 0) {
+      socketRef.current.emit("typing", { to: userId, isTyping: true });
+
+      if (localTypingTimeoutRef.current) {
+        clearTimeout(localTypingTimeoutRef.current);
+      }
+      localTypingTimeoutRef.current = setTimeout(() => {
+        socketRef.current?.emit("typing", { to: userId, isTyping: false });
+      }, 2500);
+    } else {
+      if (localTypingTimeoutRef.current) {
+        clearTimeout(localTypingTimeoutRef.current);
+      }
+      socketRef.current.emit("typing", { to: userId, isTyping: false });
+    }
   };
 
   const handleDoubleTap = (msg: Message) => {
@@ -173,7 +250,17 @@ export default function Chat() {
   const docInputRef = useRef<HTMLInputElement>(null);
 
   const onEmojiClick = (emojiData: EmojiClickData) => {
-    setContent((prev) => prev + emojiData.emoji);
+    setContent((prev) => {
+      const next = prev + emojiData.emoji;
+      if (socketRef.current && currentUser) {
+        socketRef.current.emit("typing", { to: userId, isTyping: true });
+        if (localTypingTimeoutRef.current) clearTimeout(localTypingTimeoutRef.current);
+        localTypingTimeoutRef.current = setTimeout(() => {
+          socketRef.current?.emit("typing", { to: userId, isTyping: false });
+        }, 2500);
+      }
+      return next;
+    });
     setShowEmojiPicker(false);
   };
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -315,6 +402,11 @@ export default function Chat() {
       ? `Replying to: "${replyingTo.content.substring(0, 50)}..."\n\n`
       : "";
 
+    // Clear typing indicator and notify recipient immediately
+    if (localTypingTimeoutRef.current) clearTimeout(localTypingTimeoutRef.current);
+    socketRef.current?.emit("typing", { to: userId, isTyping: false });
+    socketRef.current?.emit("send-message", { to: userId, content: replyPrefix + messageContent });
+
     // Clear input INSTANTLY — don't wait for server
     setContent("");
     setReplyingTo(null);
@@ -399,9 +491,20 @@ export default function Chat() {
                 <h3 className="font-bold text-sm leading-tight truncate max-w-[120px] sm:max-w-[180px]">
                   {user.firstName} {user.lastName}
                 </h3>
-                <span className="text-[10px] text-muted-foreground leading-none">
-                  {user.isOnline ? "online" : `last seen ${user.lastSeen ? format(new Date(user.lastSeen), 'h:mm a') : 'recently'}`}
-                </span>
+                {isTypingVisible ? (
+                  <span className="text-[11px] font-semibold text-primary leading-none flex items-center gap-1 animate-pulse">
+                    <span>typing</span>
+                    <span className="flex items-center gap-0.5 mt-0.5">
+                      <span className="w-1 h-1 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
+                      <span className="w-1 h-1 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
+                      <span className="w-1 h-1 rounded-full bg-primary animate-bounce" />
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground leading-none">
+                    {user.isOnline ? "online" : `last seen ${user.lastSeen ? format(new Date(user.lastSeen), 'h:mm a') : 'recently'}`}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -534,24 +637,32 @@ export default function Chat() {
             <div className="flex justify-center py-10">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
+          ) : isError ? (
+            <QueryErrorState
+              title="Couldn't load messages"
+              description="This conversation couldn't be loaded. Check your connection and try again."
+              onRetry={refetch}
+              isRetrying={isFetching}
+              className="mx-4 my-8"
+            />
           ) : messages?.length === 0 ? (
             <div className="text-center py-20 opacity-50">
               <p className="text-sm">No messages yet. Say hello!</p>
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              {((messages || []) as any[]).map((msg, idx, arr) => {
+              {(messages || []).map((msg, idx, arr) => {
                 const isMe = msg.senderId === currentUser.id;
-                const prevMsg = idx > 0 ? arr[idx - 1] : null;
                 const showAvatar =
                   !isMe &&
-                  (!prevMsg || prevMsg.senderId !== msg.senderId);
+                  (idx === 0 || arr[idx - 1]?.senderId !== msg.senderId);
                 const isEditing = editingId === msg.id;
                 const currentOffset = swipeOffset[msg.id] || 0;
 
                 // Date separator logic
-                const msgDate = new Date(msg.createdAt || msg.timestamp || Date.now());
-                const prevMsgDate = prevMsg ? new Date(prevMsg.createdAt || prevMsg.timestamp || Date.now()) : null;
+                const msgDate = new Date((msg as any).timestamp || msg.createdAt || Date.now());
+                const prevMsg = idx > 0 ? arr[idx - 1] : null;
+                const prevMsgDate = prevMsg ? new Date((prevMsg as any).timestamp || prevMsg.createdAt || Date.now()) : null;
                 const isNewDay = !prevMsgDate || msgDate.toDateString() !== prevMsgDate.toDateString();
 
                 return (
@@ -734,18 +845,24 @@ export default function Chat() {
               })}
             </div>
           )}
-          {/* Typing Indicator */}
+          {/* Real-time Typing Indicator Bubble */}
           {isTypingVisible && (
-            <div className="flex items-center gap-2 px-4 py-2 animate-in fade-in duration-200">
+            <div className="flex items-end gap-2 px-1 py-1.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
               <Avatar
                 name={`${user?.firstName} ${user?.lastName}`}
                 src={user?.profileImageUrl}
                 size="sm"
+                className="w-7 h-7 mb-0.5 flex-shrink-0 shadow-sm"
               />
-              <div className="flex items-center gap-1 px-3 py-2 bg-white dark:bg-zinc-800 rounded-2xl rounded-tl-sm border border-border/50 shadow-sm">
-                <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+              <div className="flex flex-col gap-1 max-w-[80%]">
+                <span className="text-[10px] font-medium text-muted-foreground ml-1">
+                  {user?.firstName} is typing...
+                </span>
+                <div className="flex items-center gap-1.5 px-4 py-2.5 bg-card/95 dark:bg-zinc-800/95 rounded-2xl rounded-bl-sm border border-border/60 shadow-sm backdrop-blur-sm w-fit">
+                  <span className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]" />
+                  <span className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]" />
+                  <span className="w-2 h-2 bg-primary rounded-full animate-bounce" />
+                </div>
               </div>
             </div>
           )}
@@ -984,7 +1101,7 @@ export default function Chat() {
                 <input
                   type="text"
                   value={content}
-                  onChange={(e) => setContent(e.target.value)}
+                  onChange={handleInputChange}
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
                   placeholder={isRecording ? "Recording voice..." : "Type a message..."}
                   disabled={isRecording}

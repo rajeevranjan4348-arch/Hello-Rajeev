@@ -3,7 +3,6 @@ import { useLocation } from "wouter";
 import { Loader2, Phone, Shield, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { setStoredUserId, getStoredUserId, getAuthHeaders } from "@/lib/auth-utils";
 import logoImg from "@/assets/logo.png";
 
 type Step = "phone" | "otp" | "name";
@@ -20,7 +19,6 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [devOtp, setDevOtp] = useState<string | null>(null);
-  const [verifiedUserId, setVerifiedUserId] = useState<string | null>(null);
 
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
@@ -108,10 +106,6 @@ export default function Login() {
       if (!res.ok) throw new Error(data.message);
 
       const user = data.user;
-      if (user?.id) {
-        setStoredUserId(user.id);
-        setVerifiedUserId(user.id);
-      }
       // If user has a generic name (just created), ask for their name
       const isNew = !user.firstName || user.firstName === "User";
       if (isNew) {
@@ -139,26 +133,14 @@ export default function Login() {
       const parts = name.trim().split(" ");
       const firstName = parts[0];
       const lastName = parts.slice(1).join(" ") || "";
-      const storedId = getStoredUserId() || verifiedUserId;
       const res = await fetch("/api/user/profile", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeaders(),
-        },
-        body: JSON.stringify({
-          firstName,
-          lastName,
-          userId: storedId,
-          phoneNumberFallback: fullPhone,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ firstName, lastName }),
         credentials: "include",
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
-      if (data.id) {
-        setStoredUserId(data.id);
-      }
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       setLocation("/");
     } catch (err: any) {
