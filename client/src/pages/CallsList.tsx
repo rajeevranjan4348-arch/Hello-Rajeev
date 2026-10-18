@@ -5,9 +5,10 @@ import { Avatar } from "@/components/Avatar";
 import { Phone, Video, ArrowUpRight, ArrowDownLeft, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "wouter";
+import { QueryErrorState } from "@/components/QueryErrorState";
 
 export default function CallsList() {
-  const { data: calls, isLoading } = useCalls();
+  const { data: calls, isLoading, isError, refetch, isFetching } = useCalls();
   const { data: user } = useCurrentUser();
 
   return (
@@ -23,6 +24,13 @@ export default function CallsList() {
             <div className="flex justify-center py-10">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
+          ) : isError ? (
+            <QueryErrorState
+              title="Couldn't load call history"
+              description="Your recent calls are unavailable right now. Please try again."
+              onRetry={refetch}
+              isRetrying={isFetching}
+            />
           ) : calls?.length === 0 ? (
             <div className="text-center py-20 opacity-60">
               <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">

@@ -55,6 +55,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { ContactInfo } from "@/components/ContactInfo";
+import { QueryErrorState } from "@/components/QueryErrorState";
 
 export default function Chat() {
   const [, params] = useRoute("/chat/:id");
@@ -62,7 +63,7 @@ export default function Chat() {
 
   const { data: user } = useUser(userId);
   const { data: currentUser } = useCurrentUser();
-  const { data: messages, isLoading } = useMessages(userId);
+  const { data: messages, isLoading, isError, refetch, isFetching } = useMessages(userId);
   const { mutate: sendMessage, isPending: isSending } = useSendMessage();
   const { toast } = useToast();
 
@@ -534,6 +535,14 @@ export default function Chat() {
             <div className="flex justify-center py-10">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
+          ) : isError ? (
+            <QueryErrorState
+              title="Couldn't load messages"
+              description="This conversation couldn't be loaded. Check your connection and try again."
+              onRetry={refetch}
+              isRetrying={isFetching}
+              className="mx-4 my-8"
+            />
           ) : messages?.length === 0 ? (
             <div className="text-center py-20 opacity-50">
               <p className="text-sm">No messages yet. Say hello!</p>
