@@ -89,6 +89,11 @@ export default function Home() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const longPressRef = useRef<NodeJS.Timeout | null>(null);
   const didLongPressRef = useRef(false);
+  const touchStartRef = useRef<{ id: string; x: number; y: number; time: number } | null>(null);
+  const isScrollingRef = useRef(false);
+  const isSwipingRef = useRef(false);
+  const isTouchDeviceRef = useRef(false);
+  const mouseStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const handleSwipeStart = useCallback((id: string, clientX: number) => {
     setSwipeStartX(prev => ({ ...prev, [id]: clientX }));
@@ -395,7 +400,7 @@ export default function Home() {
                     {/* Chat row — tap to open, long-press for menu, swipe left to archive */}
                     <div
                       className={cn(
-                        "flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors relative bg-background select-none",
+                        "flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors relative bg-background select-none touch-pan-y",
                         isUnread && "bg-primary/[0.03]",
                         openMenuId === user.id && "bg-muted/30"
                       )}
@@ -405,36 +410,109 @@ export default function Home() {
                       }}
                       onContextMenu={(e) => { e.preventDefault(); setOpenMenuId(user.id); }}
                       onTouchStart={(e) => {
+                        isTouchDeviceRef.current = true;
                         didLongPressRef.current = false;
-                        handleSwipeStart(user.id, e.touches[0].clientX);
+                        isScrollingRef.current = false;
+                        isSwipingRef.current = false;
+                        const touch = e.touches[0];
+                        touchStartRef.current = {
+                          id: user.id,
+                          x: touch.clientX,
+                          y: touch.clientY,
+                          time: Date.now(),
+                        };
+                        handleSwipeStart(user.id, touch.clientX);
                         longPressRef.current = setTimeout(() => {
-                          didLongPressRef.current = true;
-                          if (window.navigator.vibrate) window.navigator.vibrate(40);
-                          setOpenMenuId(user.id);
+                          if (!isScrollingRef.current && !isSwipingRef.current) {
+                            didLongPressRef.current = true;
+                            if (window.navigator?.vibrate) window.navigator.vibrate(40);
+                            setOpenMenuId(user.id);
+                          }
                         }, 500);
                       }}
                       onTouchMove={(e) => {
-                        if (longPressRef.current) clearTimeout(longPressRef.current);
-                        handleSwipeMove(user.id, e.touches[0].clientX);
+                        if (!touchStartRef.current) return;
+                        const touch = e.touches[0];
+                        const dx = touch.clientX - touchStartRef.current.x;
+                        const dy = touch.clientY - touchStartRef.current.y;
+
+                        // Cancel long-press if movement exceeds small threshold
+                        if (Math.hypot(dx, dy) > 8) {
+                          if (longPressRef.current) clearTimeout(longPressRef.current);
+                        }
+
+                        // Determine gesture direction
+                        if (!isScrollingRef.current && !isSwipingRef.current) {
+                          if (Math.abs(dy) > 6 && Math.abs(dy) >= Math.abs(dx)) {
+                            // Vertical scroll: user wants to scroll the list up/down
+                            isScrollingRef.current = true;
+                          } else if (dx < -10 && Math.abs(dx) > Math.abs(dy)) {
+                            // Horizontal left swipe: user wants to reveal Archive
+                            isSwipingRef.current = true;
+                          }
+                        }
+
+                        // If scrolling vertically, do not swipe horizontally
+                        if (isScrollingRef.current) {
+                          return;
+                        }
+
+                        // If swiping horizontally to the left
+                        if (isSwipingRef.current && dx < 0) {
+                          handleSwipeMove(user.id, touch.clientX);
+                        }
                       }}
                       onTouchEnd={() => {
                         if (longPressRef.current) clearTimeout(longPressRef.current);
+                        const wasScrolling = isScrollingRef.current;
+                        const wasSwiping = isSwipingRef.current;
+                        const wasLongPress = didLongPressRef.current;
                         const offset = swipeOffsets[user.id] || 0;
+
                         handleSwipeEnd(user.id);
-                        if (!didLongPressRef.current && offset < 15) {
-                          setLocation(`/chat/${user.id}`);
+                        touchStartRef.current = null;
+                        isScrollingRef.current = false;
+                        isSwipingRef.current = false;
+
+                        // Prevent phantom mouseup
+                        setTimeout(() => {
+                          isTouchDeviceRef.current = false;
+                        }, 400);
+
+                        // If user scrolled, swiped, or triggered long press, DO NOT navigate!
+                        if (wasScrolling || wasSwiping || wasLongPress || offset >= 15) {
+                          return;
                         }
+
+                        // Only a genuine static tap opens the chat
+                        setLocation(`/chat/${user.id}`);
                       }}
-                      onMouseDown={() => {
+                      onTouchCancel={() => {
+                        if (longPressRef.current) clearTimeout(longPressRef.current);
+                        handleSwipeEnd(user.id);
+                        touchStartRef.current = null;
+                        isScrollingRef.current = false;
+                        isSwipingRef.current = false;
+                      }}
+                      onMouseDown={(e) => {
+                        if (isTouchDeviceRef.current) return;
                         didLongPressRef.current = false;
+                        mouseStartRef.current = { x: e.clientX, y: e.clientY };
                         longPressRef.current = setTimeout(() => {
                           didLongPressRef.current = true;
                           setOpenMenuId(user.id);
                         }, 600);
                       }}
-                      onMouseUp={() => {
+                      onMouseUp={(e) => {
+                        if (isTouchDeviceRef.current) return;
                         if (longPressRef.current) clearTimeout(longPressRef.current);
-                        if (!didLongPressRef.current) setLocation(`/chat/${user.id}`);
+                        if (didLongPressRef.current) return;
+                        if (mouseStartRef.current) {
+                          const dx = Math.abs(e.clientX - mouseStartRef.current.x);
+                          const dy = Math.abs(e.clientY - mouseStartRef.current.y);
+                          if (dx > 8 || dy > 8) return;
+                        }
+                        setLocation(`/chat/${user.id}`);
                       }}
                       onMouseLeave={() => {
                         if (longPressRef.current) clearTimeout(longPressRef.current);
